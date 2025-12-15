@@ -1,24 +1,36 @@
 #include "Building.h"
-
+#include"BuildingActionBar.h"
 USING_NS_CC;
 const float TILE_W = 65.55f;    // tile 宽
 const float TILE_H = 49.1625f;  // tile 高
 const int HALF = 21;            // 当前地图 tile 半径
+const float LABEL_OFFSET_Y = 20.0f;  // 标签在建筑上方的偏移量
+const float LABEL_FONT_SIZE = 45.0f; // 字体大小
+// ========== 新增：按钮相关常量 ==========
+
+
+// 地图图片偏移矫正
+const float offsetX = 51.0f; 
+const float offsetY = 156.0f; 
 Building::Building() :
     _turf(nullptr),
     _buildingSprite(nullptr),
+    _isSelected(false),
     _isDragging(false),
     _buildingScaleRatio(0.7f),
     _debugDrawNode(nullptr),
     _diamondWidthRatio(0.7f),
     _diamondHeightRatio(0.7f),
     _size(4),
-    _level(1)
+    _level(1),
+    _infoLabel(nullptr),      // 初始化标签
+    _buildingName("Building") 
+   
 {
 }
 
 Building* Building::create(const std::string& buildingFile,
-    const std::string& turfFile,
+    const std::string turfFile,
     float buildingScale)
 {
     Building* ret = new (std::nothrow) Building();
@@ -32,7 +44,7 @@ Building* Building::create(const std::string& buildingFile,
 }
 
 bool Building::init(const std::string& buildingFile,
-    const std::string& turfFile,
+    const std::string turfFile,
     float buildingScale)
 {
     if (!Node::init()) {
@@ -93,6 +105,8 @@ void Building::setupBuildingOnTurf()
     _buildingSprite->setScale(scale);
     _buildingSprite->setPosition(Vec2::ZERO);
     _buildingSprite->setAnchorPoint(Vec2(0.5f, 0.5f));
+
+    
 }
 
 void Building::setBuildingScale(float scale)
@@ -111,76 +125,9 @@ void Building::setTurfScale(float scale)
     }
 }
 
-bool Building::pointInPolygon(const Vec2& point, Vec2 polygon[], int n)
-{
-    if (n < 3) return false;
-
-    bool inside = false;
-
-    for (int i = 0, j = n - 1; i < n; j = i++) {
-        if (((polygon[i].y > point.y) != (polygon[j].y > point.y)) &&
-            (point.x < (polygon[j].x - polygon[i].x) * (point.y - polygon[i].y) /
-                (polygon[j].y - polygon[i].y) + polygon[i].x)) {
-            inside = !inside;
-        }
-    }
-
-    return inside;
-}
-
-void Building::getDiamondVertices(Vec2 vertices[4])
-{
-    if (!_turf) return;
-
-    vertices[0] = Vec2(2.65, 178);
-    vertices[1] = Vec2(239, 0);
-    vertices[2] = Vec2(-2.65, -178);
-    vertices[3] = Vec2(-239, 0);
-}
-
-bool Building::isClickOnGreenDiamond(EventMouse* e)
-{
-    if (!_turf) return false;
-
-    // 1. 获取点击点的世界坐标
-    Vec2 clickPointWorld = Vec2(e->getCursorX(), e->getCursorY());
-
-    // 2. 获取未缩放的硬编码顶点 (P_raw)
-    Vec2 diamondRaw[4];
-    getDiamondVertices(diamondRaw);
-
-    // 3. 将 P_raw 转换为世界坐标系下的顶点 P_world
-    Vec2 diamondWorld[4];
-
-    // 我们必须将 P_raw 从 (未缩放，中心原点) 逐步转换为世界坐标。
-
-    // 先转换为 Building 的本地坐标 (已缩放，中心原点)
-    for (int i = 0; i < 4; i++) {
-        // P_scaled = P_raw * Scale_turf (这是 _turf 自己的缩放)
-        diamondWorld[i].x = diamondRaw[i].x * _turf->getScaleX();
-        diamondWorld[i].y = diamondRaw[i].y * _turf->getScaleY();
-
-        // 由于 _turf 在 Building (父节点) 的 (0, 0) 且锚点是 (0.5, 0.5)，
-        // P_scaled 已经相对于 Building 锚点正确放置。
-    }
-
-    // 4. 将 Building 本地坐标转换为世界坐标
-    // 这将考虑 Building 节点本身的 Position 和所有父节点的缩放。
-    for (int i = 0; i < 4; i++) {
-        diamondWorld[i] = this->convertToWorldSpace(diamondWorld[i]);
-    }
-
-    // 5. 判定
-    // 比较： clickPointWorld (世界坐标) vs diamondWorld (世界坐标)
-    return pointInPolygon(clickPointWorld, diamondWorld, 4);
-}
-
-
 void Building::setBuildingTileSize(int tileWidthCount, int tileHeightCount)
 {
     if (!_turf) return;
-
-   
 
     float targetWidth = TILE_W * tileWidthCount;
     float targetHeight = TILE_H * tileHeightCount;
@@ -196,88 +143,35 @@ void Building::setBuildingTileSize(int tileWidthCount, int tileHeightCount)
 }
 
 
-
-
-void Building::showDiamondDebug(bool show)
-{
-    if (!_turf) return;
-
-    if (show) {
-        if (!_debugDrawNode) {
-            _debugDrawNode = DrawNode::create();
-            this->addChild(_debugDrawNode, 100);
-        }
-
-        updateDebugDisplay();
-        _debugDrawNode->setVisible(true);
-    }
-    else if (_debugDrawNode) {
-        _debugDrawNode->setVisible(false);
-    }
-}
-
-void Building::setDiamondDebugParams(float widthRatio, float heightRatio)
-{
-    _diamondWidthRatio = widthRatio;
-    _diamondHeightRatio = heightRatio;
-
-    if (_debugDrawNode && _debugDrawNode->isVisible()) {
-        updateDebugDisplay();
-    }
-}
-
-void Building::updateDebugDisplay()
-{
-    if (_debugDrawNode && _turf) {
-        _debugDrawNode->clear();
-
-        Vec2 diamond[4];
-        getDiamondVertices(diamond);
-
-        for (int i = 0; i < 4; i++) {
-            diamond[i].x *= _turf->getScaleX();
-            diamond[i].y *= _turf->getScaleY();
-        }
-
-        // 原有：画菱形
-        for (int i = 0; i < 4; i++) {
-            _debugDrawNode->drawLine(
-                diamond[i],
-                diamond[(i + 1) % 4],
-                Color4F::RED
-            );
-        }
-
-        Color4F fillColor = Color4F::RED;
-        fillColor.a = 0.3f;
-        _debugDrawNode->drawSolidPoly(diamond, 4, fillColor);
-
-        // 新增：只在 debug 里画中心点（草地 0,0）
-        _debugDrawNode->drawDot(
-            Vec2::ZERO,      // turf 的 (0,0)
-            2.0f,
-            Color4F::BLUE
-        );
-    }
-}
-
-
 void Building::onBuildingMouseDown(Event* event)
 {
-    EventMouse* e = static_cast<EventMouse*>(event);
+    if (_isSelected) {
+        
+        EventMouse* e = static_cast<EventMouse*>(event);
+        if (e->getMouseButton() == EventMouse::MouseButton::BUTTON_LEFT &&
+            isClickingInTurf(this->_parent, e))
+        {
+            _isDragging = true;
+            _lastMousePos = Vec2(e->getCursorX(), e->getCursorY());
+            _dragStartPos = this->getPosition();
+            
+            event->stopPropagation();
+        }
+    }
+    else {
+        _isSelected = true;
+        EventMouse* e = static_cast<EventMouse*>(event);
+        if (e->getMouseButton() == EventMouse::MouseButton::BUTTON_LEFT &&
+            isClickingInTurf(this->_parent, e))
+        {
+            if (_turf) _turf->setColor(Color3B(180, 180, 180));
+            if (_buildingSprite) _buildingSprite->setColor(Color3B(220, 220, 220));
+            this->runAction(ScaleTo::create(0.1f, this->getScale() * 1.05f));
 
-    if (e->getMouseButton() == EventMouse::MouseButton::BUTTON_LEFT &&
-        isClickingInTurf(this->_parent,e))
-    {
-        _isDragging = true;
-        _lastMousePos = Vec2(e->getCursorX(), e->getCursorY());
-
-        if (_turf) _turf->setColor(Color3B(180, 180, 180));
-        if (_buildingSprite) _buildingSprite->setColor(Color3B(220, 220, 220));
-
-        _dragStartPos = this->getPosition();
-        this->runAction(ScaleTo::create(0.1f, this->getScale() * 1.05f));
-        event->stopPropagation();
+            showInfoLabel();
+            showActionBar();
+            event->stopPropagation();
+        }
     }
 }
 
@@ -285,6 +179,7 @@ void Building::onBuildingMouseDown(Event* event)
 void Building::onBuildingMouseUp(Event* event)
 {
     if (_isDragging) {
+        _isSelected = false;
         _isDragging = false;
 
         if (_turf) _turf->setColor(Color3B::WHITE);
@@ -297,25 +192,44 @@ void Building::onBuildingMouseUp(Event* event)
         }
 
         this->runAction(ScaleTo::create(0.1f, this->getScale() / 1.05f));
+       
+         hideInfoLabel();
+         hideActionBar();
         event->stopPropagation();
+        return;
     }
+    
 }
+
+void Building::onBuildingMouseMove(Event* event)
+{
+    if (!_isDragging) return;
+
+    EventMouse* e = static_cast<EventMouse*>(event);
+    Vec2 currentMousePos = Vec2(e->getCursorX(), e->getCursorY());
+    Vec2 delta = currentMousePos - _lastMousePos;
+
+    Node* parent = this->getParent();
+    float scale = parent ? parent->getScale() : 1.0f;
+    Vec2 localDelta = delta / scale;
+
+    this->setPosition(this->getPosition() + localDelta);
+    _lastMousePos = currentMousePos;
+   
+    event->stopPropagation();
+}
+
+
 
 void Building::drawDebugMapRange(Node* mapNode)
 {
     if (!mapNode) return;
-
-    
 
     // debug 节点挂在 mapNode 下
     auto debugNode = DrawNode::create();
     mapNode->addChild(debugNode, 9999);
 
     Size mapSize = mapNode->getContentSize();
-
-    //  使用和判定一致的偏移量
-    float offsetX = 51.0f; // 与 isCenterInsideMap() 保持一致
-    float offsetY = 156.0f;
 
     Vec2 mapCenter(mapSize.width * 0.5f + offsetX, mapSize.height * 0.5f + offsetY);
 
@@ -365,17 +279,11 @@ void Building::snapToTile(Node* mapNode, int buildingTileW, int buildingTileH)
     }
 
 
-
-
-    
-
     //  建筑中心在地图本地坐标
     Vec2 worldCenter = this->convertToWorldSpace(Vec2::ZERO);
     Vec2 mapLocal = mapNode->convertToNodeSpace(worldCenter);
 
     Size mapSize = mapNode->getContentSize();
-    float offsetX = 51.0f;   // 与 isCenterInsideMap 保持一致
-    float offsetY = 156.0f;
     Vec2 mapCenter(mapSize.width / 2 + offsetX, mapSize.height / 2 + offsetY);
     Vec2 centered = mapLocal - mapCenter;
 
@@ -407,36 +315,6 @@ void Building::snapToTile(Node* mapNode, int buildingTileW, int buildingTileH)
 }
 
 
-
-
-
-
-
-
-void Building::onBuildingMouseMove(Event* event)
-{
-    if (!_isDragging) return;
-
-    EventMouse* e = static_cast<EventMouse*>(event);
-    Vec2 currentMousePos = Vec2(e->getCursorX(), e->getCursorY());
-    Vec2 delta = currentMousePos - _lastMousePos;
-
-    Node* parent = this->getParent();
-    float scale = parent ? parent->getScale() : 1.0f;
-    Vec2 localDelta = delta / scale;
-
-    this->setPosition(this->getPosition() + localDelta);
-    _lastMousePos = currentMousePos;
-
-    
-
-    event->stopPropagation();
-}
-
-
-
-
-
 bool Building::isCenterInsideMap(Node* mapNode) const
 {
     if (!mapNode) return false;
@@ -448,10 +326,6 @@ bool Building::isCenterInsideMap(Node* mapNode) const
     Vec2 mapLocal = mapNode->convertToNodeSpace(worldCenter);
 
     Size size = mapNode->getContentSize();
-
-    // ★ 3新增：根据图片实际偏移微调
-    float offsetX = 51.0f; // X 方向偏移量，可正/负调整
-    float offsetY = 156.0f; // Y 方向偏移量，可正/负调整
 
     Vec2 mapCenter(size.width / 2 + offsetX, size.height / 2 + offsetY);
     Vec2 centered = mapLocal - mapCenter;
@@ -480,8 +354,6 @@ bool Building::isClickingInTurf(Node* mapNode, cocos2d::EventMouse* e)
     Vec2 mapLocal = mapNode->convertToNodeSpace(worldCenter);
 
     Size mapSize = mapNode->getContentSize();
-    float offsetX = 51.0f;   // 与 isCenterInsideMap 保持一致
-    float offsetY = 156.0f;
     Vec2 mapCenter(mapSize.width / 2 + offsetX, mapSize.height / 2 + offsetY);
     Vec2 centered = mapLocal - mapCenter;
 
@@ -516,15 +388,186 @@ bool Building::isClickingInTurf(Node* mapNode, cocos2d::EventMouse* e)
 }
 
 
+// ========== 新增：设置建筑名称 ==========
+void Building::setBuildingName(const std::string& name)
+{
+    _buildingName = name;
+    if (_isSelected && _infoLabel) {
+        updateInfoLabel(); // 如果当前已选中，立即更新标签
+    }
+}
 
-void Building::updateBuildingAppearance() {
-    if (_buildingSprite) {
-        this->removeChild(_buildingSprite);
+// ========== 新增：设置等级 ==========
+void Building::setLevel(int level)
+{
+    if (level < 1) level = 1;
+    if (level > 10) level = 10; // 假设最大10级
+
+    if (_level != level) {
+        _level = level;
+        if (_isSelected && _infoLabel) {
+            updateInfoLabel(); // 如果当前已选中，立即更新标签
+        }
+    }
+}
+
+// 控制标签显示
+void Building::setShowInfoLabel(bool show)
+{
+    if (show) {
+        showInfoLabel();
+    }
+    else {
+        hideInfoLabel();
+    }
+}
+
+// 创建信息标签
+void Building::createInfoLabel()
+{
+    if (_infoLabel) {
+        _infoLabel->removeFromParent();
+        _infoLabel = nullptr;
     }
 
-    
-    //_buildingSprite = Sprite::create(_levelSprites[_level - 1]);
-    
-    //this->addChild(_buildingSprite, 1);
-    
+    // 创建标签
+    _infoLabel = Label::createWithTTF("", "fonts/Marker Felt.ttf", LABEL_FONT_SIZE);
+    if (!_infoLabel) {
+        // 如果TTF字体不存在，使用系统字体
+        _infoLabel = Label::createWithSystemFont("", "Arial", LABEL_FONT_SIZE);
+    }
+
+    if (_infoLabel) {
+        this->addChild(_infoLabel, 100); // 较高的z-order确保显示在最前面
+
+        // 设置标签样式
+        _infoLabel->setTextColor(Color4B::WHITE);
+        _infoLabel->enableOutline(Color4B::BLACK, 2); // 黑色描边，提高可读性
+        _infoLabel->setAlignment(TextHAlignment::CENTER);
+
+        // 初始设置为隐藏
+        _infoLabel->setOpacity(0);
+        _infoLabel->setVisible(false);
+    }
+}
+
+
+// 显示信息标签
+void Building::showInfoLabel()
+{
+    if (!_infoLabel) {
+        createInfoLabel();
+    }
+
+    if (_infoLabel) {
+        // 更新标签内容
+        updateInfoLabel();
+
+        // 设置标签位置（建筑上方）
+        float labelY = _turf ? (_turf->getContentSize().height * _turf->getScaleY() / 2 + LABEL_OFFSET_Y) : LABEL_OFFSET_Y;
+        _infoLabel->setPosition(Vec2(0, labelY));
+
+        // 显示动画
+        _infoLabel->setVisible(true);
+        _infoLabel->stopAllActions();
+
+        auto fadeIn = FadeIn::create(0.2f);
+        auto scaleUp = ScaleTo::create(0.2f, 1.2f);
+        auto scaleDown = ScaleTo::create(0.1f, 1.0f);
+        auto spawn = Spawn::create(fadeIn, scaleUp, nullptr);
+        _infoLabel->runAction(Sequence::create(spawn, scaleDown, nullptr));
+    }
+}
+
+// 隐藏信息标签
+void Building::hideInfoLabel()
+{
+    if (_infoLabel && _infoLabel->isVisible()) {
+        _infoLabel->stopAllActions();
+
+        auto fadeOut = FadeOut::create(0.2f);
+        auto scaleDown = ScaleTo::create(0.2f, 0.8f);
+        auto spawn = Spawn::create(fadeOut, scaleDown, nullptr);
+        auto hide = CallFunc::create([this]() {
+            if (_infoLabel) {
+                _infoLabel->setVisible(false);
+            }
+            });
+
+        _infoLabel->runAction(Sequence::create(spawn, hide, nullptr));
+    }
+}
+
+// 更新标签内容
+void Building::updateInfoLabel()
+{
+    if (!_infoLabel) return;
+
+    // 构建显示文本：建筑名称 + 等级
+    std::string displayText = _buildingName + " lv." + std::to_string(_level);
+    _infoLabel->setString(displayText);
+}
+
+void Building::setSelected(bool selected)
+{
+    _isSelected = selected;
+    if (!selected) {
+        // 取消选择时恢复颜色
+        if (_turf) _turf->setColor(Color3B::WHITE);
+        if (_buildingSprite) _buildingSprite->setColor(Color3B::WHITE);
+
+        // 恢复缩放
+        this->runAction(ScaleTo::create(0.1f, this->getScale() / 1.05f));
+
+        // 隐藏标签
+        hideInfoLabel();
+    }
+}
+
+// 显示操作栏 
+void Building::showActionBar()
+{
+    auto actionBar = BuildingActionBar::getInstance();
+    if (actionBar) {
+        // 设置回调（使用lambda捕获this）
+        actionBar->setCallbacks(
+            [this]() { this->onInfoButtonClicked(); },
+            [this]() { this->onUpgradeButtonClicked(); }
+        );
+
+        // 显示操作栏
+        actionBar->showForBuilding(this);
+    }
+}
+
+//隐藏操作栏（静态方法）
+void Building::hideActionBar()
+{
+    auto actionBar = BuildingActionBar::getInstance();
+    if (actionBar) {
+        actionBar->hide();
+    }
+}
+
+// 按钮回调
+void Building::onInfoButtonClicked()
+{
+    CCLOG("信息按钮: %s", _buildingName.c_str());
+}
+
+void Building::onUpgradeButtonClicked()
+{
+    CCLOG("升级按钮: %s Lv.%d", _buildingName.c_str(), _level);
+
+    if (_level < 10) {
+        _level++;
+        updateInfoLabel();
+
+        // 升级动画
+        auto scaleUp = ScaleTo::create(0.1f, this->getScale() * 1.1f);
+        auto scaleDown = ScaleTo::create(0.1f, this->getScale());
+        this->runAction(Sequence::create(scaleUp, scaleDown, nullptr));
+
+        CCLOG("%s 升级到 Lv.%d", _buildingName.c_str(), _level);
+    }
 }
