@@ -2,61 +2,75 @@
 #define __HELLOWORLD_SCENE_H__
 
 #include "cocos2d.h"
-#include <vector>
-#include <string>
+#include "audio/include/AudioEngine.h"
+
+USING_NS_CC;
+
+// 瀹氫箟鏍囩甯搁噺
+const int GOLD_LABEL_TAG = 1001;
+const int CRYSTAL_LABEL_TAG = 1002;
+const int LEFT_ARROW_TAG = 1003;
+const int RIGHT_ARROW_TAG = 1004;
+const int LABEL_TAG = 1005;
+
+class BeachScene;
 
 class HelloWorld : public cocos2d::Scene
 {
-private:
-    enum {
-        GOLD_LABEL_TAG = 200,
-        CRYSTAL_LABEL_TAG = 201,
-        SELECTED_IMAGE_TAG_BASE = 1000
-    };
-
 public:
     static cocos2d::Scene* createScene();
-    virtual bool init();
-    void openBeachScene();
+    virtual bool init() override;
+
     CREATE_FUNC(HelloWorld);
 
+    // 闊抽鎺у埗鏂规硶
+    static void playBackgroundMusic();
+    static void stopBackgroundMusic();
+
+    virtual void onEnter() override;
+    virtual void onExit() override;
+
+    void displayPlayerResources();
+    void openBeachScene();
+
 private:
-    void displayPlayerResources();  // 显示玩家资源
     cocos2d::Sprite* createSelectedImageSprite();
+    static int s_backgroundAudioID;  // 涓诲満鏅儗鏅煶涔愮殑闊抽ID
 };
 
 class BeachScene : public cocos2d::Layer
 {
-private:
-    cocos2d::Vector<cocos2d::Sprite*> allImages;      // 所有图片
-    cocos2d::Vector<cocos2d::Sprite*> visibleImages;  // 当前可见的图片
-    cocos2d::Label* currentPageLabel;  // 当前页码标签
-    int currentPage;                   // 当前页码
-    int touchedImageIndex;             // 当前触摸的图片索引
-
-    enum {
-        LEFT_ARROW_TAG = 100,
-        RIGHT_ARROW_TAG = 101,
-        BORDER_TAG = 102,
-        LABEL_TAG = 103,
-        GOLD_LABEL_TAG = 200,
-        CRYSTAL_LABEL_TAG = 201
-    };
-
 public:
-    virtual bool init();
+    virtual bool init() override;
+
     CREATE_FUNC(BeachScene);
 
+    virtual void onEnter() override;
+    virtual void onExit() override;
+
 private:
-    void displayPlayerResources();    // 显示玩家资源
-    void updateResourceDisplay();     // 更新资源显示
+    void displayPlayerResources();
     void loadAllImages();
-    void createImageSelectionArea();   // 创建图片选择区域
-    void createImageGallery();         // 创建图片展示
-    void updateGalleryDisplay();       // 更新图片显示
+    void createImageSelectionArea();
+    void createImageGallery();
+    void updateResourceDisplay();
+    void updateGalleryDisplay();
 
     bool onTouchBegan(cocos2d::Touch* touch, cocos2d::Event* event);
     void onTouchEnded(cocos2d::Touch* touch, cocos2d::Event* event);
+
+    // 鍟嗗簵闊抽鎺у埗
+    static void playShopBackgroundMusic();
+    static void stopShopBackgroundMusic();
+
+private:
+    cocos2d::Vector<cocos2d::Sprite*> allImages;
+    cocos2d::Vector<cocos2d::Sprite*> visibleImages;
+    cocos2d::Label* currentPageLabel = nullptr;
+    int currentPage = 0;
+    int touchedImageIndex = -1;
+
+    static int s_shopBackgroundAudioID;  // 鍟嗗簵鍦烘櫙鑳屾櫙闊充箰鐨勯煶棰慖D
 };
 
 #endif // __HELLOWORLD_SCENE_H__
