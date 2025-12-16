@@ -1,154 +1,281 @@
 ﻿#include "COCScene.h"
-#include "Player1.h"
-#include <ctime> 
-#include <vector>
-#include <algorithm> // 用于查找士兵列表
+// 初始化静态队列和标记
+std::queue<Soldier*> COC::_destroyQueue;
+bool COC::_isDestroying = false;
 
-USING_NS_CC;
-
-Scene* COC::createScene()
-{
+Scene* COC::createScene() {
     return COC::create();
 }
 
-static void problemLoading(const char* filename)
-{
-    printf("加载文件时出错: %s\n", filename);
-    printf("根据编译方式的不同，你可能需要在 COCScene.cpp 中的文件名前添加 'Resources/' 路径\n");
-}
-
-bool COC::init()
-{
-    if (!Scene::init())
-    {
-        return false;
-    }
+bool COC::init() {
+    if (!Scene::init()) return false;
 
     auto visibleSize = Director::getInstance()->getVisibleSize();
     Vec2 origin = Director::getInstance()->getVisibleOrigin();
-    srand((unsigned)time(NULL));
-
-    // 固定进攻目标 + 统一速度
-    Vec2 attackTargetPos = Vec2(origin.x + visibleSize.width - 50, origin.y + visibleSize.height / 2);
-    const float SOLDIER_SPEED = 200.0f;
-
-    // 背景
-    auto sprite = Sprite::create("backgroud.png");
-    if (sprite == nullptr)
-    {
-        problemLoading("'backgroud.png'");
+    // --------------------------
+    // 1. 添加背景图（核心代码）
+    // --------------------------
+    auto background = Sprite::create("background.png"); 
+    if (background) {
+        // 设置背景图位置为屏幕中心
+        background->setPosition(Vec2(visibleSize.width / 2 + origin.x, visibleSize.height / 2 + origin.y));
+        // 按屏幕大小缩放背景图
+        float scaleX = visibleSize.width / background->getContentSize().width;
+        float scaleY = visibleSize.height / background->getContentSize().height;
+        background->setScale(MAX(scaleX, scaleY));  // 按最大比例缩放，确保覆盖屏幕
+        this->addChild(background, 0);  // 层级设为0（最低层，避免遮挡其他元素）
     }
-    else
-    {
-        sprite->setPosition(Vec2(visibleSize.width / 2 + origin.x, visibleSize.height / 2 + origin.y));
-        sprite->setScale(visibleSize.width / sprite->getContentSize().width, visibleSize.height / sprite->getContentSize().height);
-        this->addChild(sprite, 0);
+    else {
+        CCLOG("警告：背景图加载失败，请检查路径是否正确！");
     }
 
-    // ========== 士兵数量标签 ==========
-    auto soldierCountLabel = Label::createWithSystemFont("0/10", "Arial", 48);
-    soldierCountLabel->setColor(Color3B::RED);
-    soldierCountLabel->enableBold();
-    soldierCountLabel->enableOutline(Color4B::BLACK, 3);
-    soldierCountLabel->setPosition(Vec2(visibleSize.width / 2, visibleSize.height / 2));
-    soldierCountLabel->setLocalZOrder(1);
-    soldierCountLabel->setTag(1001);
-    this->addChild(soldierCountLabel);
-    CCLOG("标签最终位置：x=%.2f, y=%.2f", soldierCountLabel->getPositionX(), soldierCountLabel->getPositionY());
+    // 原目标点设置（保留你的逻辑）
+    _attackTargetPos = Vec2(visibleSize.width - 50, visibleSize.height / 2);
 
-    // ========== 销毁事件监听 ==========
-    auto destroyListener = EventListenerCustom::create("soldier_need_destroy", [](EventCustom* event) {
-        Player* soldier = (Player*)event->getUserData();
-        if (!soldier) return;
-        // 仅销毁士兵节点，不处理数量
-        soldier->removeFromParent();
-        });
-    _eventDispatcher->addEventListenerWithFixedPriority(destroyListener, 1);
-
-    // ========== 触摸监听 ==========
-    auto touchListener = EventListenerTouchOneByOne::create();
-    touchListener->setSwallowTouches(true);
-
-    touchListener->onTouchBegan = [this, attackTargetPos, SOLDIER_SPEED](Touch* touch, Event* event) -> bool {
-        // 数量上限判断
-        if (this->_currentSoldierCount >= this->MAX_SOLDIER_COUNT)
-        {
-            CCLOG("士兵数量已达上限（10），无法生成！");
-            return true;
-        }
-
-        // 出生位置（带偏移）
-        Vec2 bornPos = touch->getLocation();
-        float randomOffsetX = (rand() % 20) - 10;
-        float randomOffsetY = (rand() % 20) - 10;
-        bornPos.x += randomOffsetX;
-        bornPos.y += randomOffsetY;
-
-        // 计算移动耗时
-        float distance = bornPos.distance(attackTargetPos);
-        float duration = distance / SOLDIER_SPEED;
-        if (duration < 0.1f) duration = 0.1f;
-
-        // 创建士兵
-        auto soldier = Player::create("player_walk1.png", bornPos, 2.0f);
-        if (soldier != nullptr)
-        {
-            this->addChild(soldier, 1);
-
-            // 初始化走路动画
-            std::vector<std::string> walkFrames = {
-                "player_walk1.png",
-                "player_walk2.png",
-                "player_walk3.png",
-                "player_walk4.png"
-            };
-            soldier->initWalkAnimation(walkFrames);
-
-            // 移动到目标
-            soldier->moveToTarget(attackTargetPos, duration);
-
-            // 更新累计释放数量
-            this->_currentSoldierCount++;
-            CCLOG("生成士兵，累计释放：%d/10", this->_currentSoldierCount);
-
-            // 更新标签
-            auto label = (Label*)this->getChildByTag(1001);
-            if (label)
-            {
-                label->setString(StringUtils::format("%d/10", this->_currentSoldierCount));
-            }
-        }
-
-        return true;
-        };
-
-    _eventDispatcher->addEventListenerWithSceneGraphPriority(touchListener, this);
-
-    // 目标标记（调试）
-    auto targetMarker = DrawNode::create();
-    targetMarker->drawCircle(attackTargetPos, 10, 0, 30, false, Color4F::RED);
-    this->addChild(targetMarker, 2);
-
-    // 敌方单位
-    auto player2 = Sprite::create("cat.png");
-    if (player2 == nullptr)
-    {
-        problemLoading("'cat.png'");
-    }
-    else
-    {
-        player2->setPosition(attackTargetPos);
-        player2->setScale(2.0f);
-        this->addChild(player2, 1);
-
-        auto player2_rotate = RotateBy::create(1.0f, -360);
-        auto player2_repeat = RepeatForever::create(player2_rotate);
-        player2->runAction(player2_repeat);
-    }
+    // 初始化选择界面和触摸监听（核心功能）
+    initSoldierSelector();
+    initTouchListener();
 
     return true;
 }
-void COC::menuCloseCallback(Ref* pSender)
-{
-    Director::getInstance()->end();
+
+// 临时：根据兵种返回等级（后续替换为 TeamMate::getSoldierLevel(type)）
+int COC::getTempSoldierLevel(Soldier::Type type) {
+    switch (type) {
+        case Soldier::Type::INFANTRY: return _infantryLevel;
+        case Soldier::Type::ARCHER: return _archerLevel;
+        case Soldier::Type::CAVALRY: return _cavalryLevel;
+        case Soldier::Type::MAGE: return _mageLevel;
+        default: return 1;
+    }
+}
+
+
+
+// 新增：处理销毁队列（按顺序销毁士兵）
+void COC::processDestroyQueue() {
+    if (_destroyQueue.empty()) {
+        _isDestroying = false; // 队列为空，标记为无销毁中
+        return;
+    }
+
+    _isDestroying = true;
+    Soldier* current = _destroyQueue.front(); // 取队首士兵
+
+    // 3秒后销毁当前士兵，然后处理下一个
+    current->runAction(Sequence::create(
+        DelayTime::create(3.0f),
+        CallFunc::create([this]() {
+            // 销毁当前士兵
+            _destroyQueue.front()->removeFromParentAndCleanup(true);
+            _destroyQueue.pop();
+            // 处理下一个士兵
+            processDestroyQueue();
+            }),
+        nullptr
+    ));
+}
+
+void COC::initSoldierSelector() {
+    auto visibleSize = Director::getInstance()->getVisibleSize();
+    Vec2 origin = Director::getInstance()->getVisibleOrigin();
+
+    // 底部选择栏背景
+    auto bar = LayerColor::create(Color4B(50, 50, 50, 200), visibleSize.width, 100);
+    bar->setPosition(origin);
+    this->addChild(bar, 10);
+
+    // 头像与类型映射
+    std::vector<std::pair<Soldier::Type, std::string>> types = {
+        {Soldier::Type::INFANTRY, "infantry_icon.png"},  // 步兵头像
+        {Soldier::Type::ARCHER, "archer_icon.png"},      // 弓箭手头像
+        {Soldier::Type::CAVALRY, "cavalry_icon.png"},    // 骑兵头像
+        {Soldier::Type::MAGE, "mage_icon.png"}           // 法师头像
+    };
+
+    // 排列头像（横向分布）
+    float startX = 500;  // 第一个头像的X坐标
+    for (int i = 0; i < types.size(); i++) {
+        auto type = types[i].first;
+        auto iconPath = types[i].second;
+
+        // 头像按钮
+        auto btn = Button::create(iconPath);
+        btn->setPosition(Vec2(startX + i * 200, 50));  // 间距200
+        bar->addChild(btn);
+
+        // 点击切换选中类型
+        btn->addClickEventListener([this, type](Ref*) {
+            _selectedType = type;
+            });
+
+        // 计数标签（头像下方）
+        auto label = Label::createWithSystemFont("0/0", "Arial", 24);
+        label->setPosition(Vec2(btn->getContentSize().width / 2, 0));
+        btn->addChild(label);
+        _countLabels[type] = label;
+        _soldierReleaseCounts[type] = 0;  // 初始计数0
+        updateCountLabel(type);
+    }
+}
+
+// 在initTouchListener的触摸回调中调用spawnSoldier
+void COC::initTouchListener() {
+    auto listener = EventListenerTouchOneByOne::create();
+    listener->onTouchBegan = [this](Touch* touch, Event*) -> bool {
+        auto currentType = _selectedType;
+
+        // 检查是否达上限
+        if (_soldierReleaseCounts[currentType] >= _maxReleaseCounts[currentType]) {
+            return true;
+        }
+
+        // 调用新的士兵创建函数
+        spawnSoldier(currentType, touch->getLocation());
+        return true;
+        };
+    _eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);
+}
+
+// 整合后的士兵创建函数（包含等级设置和原有逻辑）
+void COC::spawnSoldier(Soldier::Type type, Vec2 pos) {
+    auto soldier = Soldier::create(type, pos, 2.0f);
+    if (!soldier) return;
+
+    // 设置士兵等级（核心新增逻辑）
+    soldier->setLevel(getTempSoldierLevel(type));
+    soldier->bindScene(this);
+    this->addChild(soldier, 1);
+
+    // 保留原有移动和队列逻辑
+    float distance = pos.distance(_attackTargetPos);
+    float duration = distance / SOLDIER_SPEED;
+    soldier->moveToTarget(_attackTargetPos, duration);
+
+    soldier->onReachTarget = [this](Soldier* s) {
+        // 先判断是否在攻击范围内
+        if (isInAttackRange(s)) {
+            addToAttackQueue(s); // 加入攻击队列
+        } else {
+            CCLOG("士兵未进入攻击范围，不加入攻击队列");
+        }
+    };
+
+    // 更新计数
+    _soldierReleaseCounts[type]++;
+    updateCountLabel(type);
+}
+
+void COC::processSoldierQueue() {
+    if (_soldierQueue.empty()) {  // 队列为空则退出
+        _isProcessingQueue = false;
+        return;
+    }
+
+    _isProcessingQueue = true;
+    auto currentSoldier = _soldierQueue.front();  // 取队首士兵
+
+    // 检查士兵是否存活，如果已死亡则直接处理下一个
+    if (!currentSoldier->isAlive()) {
+        _soldierQueue.pop();
+        processSoldierQueue();
+        return;
+    }
+
+    // 启动当前士兵受攻击
+    currentSoldier->startTakeDamagePerSecond(_damagePerSec);
+    CCLOG("开始攻击队列头部士兵，每秒扣血：%.1f", _damagePerSec);
+
+    // 监听士兵死亡事件，死亡后处理下一个
+    Director::getInstance()->getScheduler()->schedule(
+        [this](float dt) {
+            if (!_soldierQueue.empty() && !_soldierQueue.front()->isAlive()) {
+                _soldierQueue.pop();
+                this->_isProcessingQueue = false;
+                this->processSoldierQueue(); // 处理下一个士兵
+            }
+        },
+        this,
+        0.5f,
+        false,
+        "SoldierQueueCheckTimer_" + std::to_string((long long)this)
+    );
+}
+
+void COC::updateCountLabel(Soldier::Type type) {
+    auto label = _countLabels[type];
+    if (label) {
+        // 显示“已释放/上限”
+        label->setString(StringUtils::format("%d/%d",
+            _soldierReleaseCounts[type], _maxReleaseCounts[type]));
+    }
+}
+
+// 判断士兵是否进入攻击范围
+bool COC::isInAttackRange(Soldier* soldier) {
+    float distance = soldier->getPosition().distance(_attackTargetPos);
+    return distance <= _attackRange;
+}
+
+// 士兵进入范围后加入攻击队列
+void COC::addToAttackQueue(Soldier* soldier) {
+    if (!soldier->isAlive() || soldier->getState() != Soldier::State::MOVING) return;
+
+    soldier->setState(Soldier::State::WAITING); // 进入等待状态
+    _attackQueue.push(soldier);
+    CCLOG("士兵加入攻击队列，当前队列长度：%d", (int)_attackQueue.size());
+
+    // 若队列未处理，立即启动第一个士兵受击
+    if (!_isQueueProcessing) {
+        processAttackQueue();
+    }
+}
+
+void COC::processAttackQueue() {
+    if (_attackQueue.empty()) {
+        _isQueueProcessing = false;
+        return;
+    }
+
+    _isQueueProcessing = true;
+
+    // 清理队列中已死亡的士兵
+    while (!_attackQueue.empty() && !_attackQueue.front()->isAlive()) {
+        _attackQueue.pop();
+    }
+
+    if (_attackQueue.empty()) {
+        _isQueueProcessing = false;
+        return;
+    }
+
+    Soldier* frontSoldier = _attackQueue.front();
+
+    // 启动攻击逻辑
+    if (frontSoldier->getState() == Soldier::State::WAITING) {
+        frontSoldier->startTakeDamagePerSecond(_damagePerSec);
+        CCLOG("开始攻击队列头部士兵，每秒扣血：%.1f", _damagePerSec);
+
+        // 使用更可靠的检查方式
+        Director::getInstance()->getScheduler()->schedule(
+            [this](float dt) {
+                if (_attackQueue.empty()) {
+                    Director::getInstance()->getScheduler()->unschedule("QueueCheckTimer", this);
+                    _isQueueProcessing = false;
+                    return;
+                }
+
+                Soldier* front = _attackQueue.front();
+                if (!front || !front->isAlive()) {
+                    _attackQueue.pop();
+                    Director::getInstance()->getScheduler()->unschedule("QueueCheckTimer", this);
+                    this->processAttackQueue();
+                }
+            },
+            this,
+            0.05f,
+            false,
+            "QueueCheckTimer"
+        );
+    }
 }

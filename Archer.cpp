@@ -1,8 +1,22 @@
-#include "Player1.h"
+
+#include "Archer.h"
 #include "COCScene.h" // 包含场景头文件，访问队列
 
-Player1* Player1::create(Vec2 pos, float scale) {
-    auto p = new Player1();
+// ========== 新增：1级基础属性（步兵：血厚、攻中等） ==========
+void Archer::initBaseAttributes() {
+    _maxHP = 50;   // 1级最大生命值
+    _attack = 100;   // 1级攻击力
+}
+
+// ========== 新增：等级成长公式（每级血+20，攻+3） ==========
+void Archer::updateAttributesByLevel() {
+    int level = getLevel();
+    _maxHP = 50 + (level - 1) * 20;  // 1级100，2级120，3级140...
+    _attack = 100 + (level - 1) * 3;   // 1级10，2级13，3级16...
+}
+
+Archer* Archer::create(Vec2 pos, float scale) {
+    auto p = new Archer();
     if (p && p->init(pos, scale)) {
         p->autorelease();
         return p;
@@ -11,36 +25,19 @@ Player1* Player1::create(Vec2 pos, float scale) {
     return nullptr;
 }
 
-bool Player1::init(Vec2 pos, float scale) {
- 
-    if (!initBase("player_walk1.png", pos, scale)) {
+bool Archer::init(Vec2 pos, float scale) {
+    // 替换为弓箭手的静止图片
+    if (!initBase("archer_walk1.png", pos, scale)) {
         return false;
     }
-
-    _walkFrames = {
-        "player_walk1.png",
-        "player_walk2.png",
-        "player_walk3.png",
-        "player_walk4.png"
-    };
+    // 替换为弓箭手的行走帧图片
+    _walkFrames = { "archer_walk1.png", "archer_walk2.png", "archer_walk3.png" };
     initWalkAnimation();
     return true;
 }
 
-// ========== 新增：1级基础属性 ==========
-void Player1::initBaseAttributes() {
-    _maxHP = 100;   // 1级最大生命值
-    _attack = 10;   // 1级攻击力
-}
-
-// ========== 新增：等级成长公式（每级血+20，攻+3） ==========
-void Player1::updateAttributesByLevel() {
-    int level = getLevel();
-    _maxHP = 100 + (level - 1) * 20; 
-    _attack = 10 + (level - 1) * 3; 
-}
-
-void Player1::initWalkAnimation() {
+// 以下函数实现与Player1类似，可根据弓箭手特性调整（如移动速度、动画帧间隔）
+void Archer::initWalkAnimation() {
     Vector<SpriteFrame*> frames;
     for (auto& path : _walkFrames) {
         auto texture = Director::getInstance()->getTextureCache()->addImage(path);
@@ -48,16 +45,16 @@ void Player1::initWalkAnimation() {
             texture->getContentSize().width, texture->getContentSize().height));
         frames.pushBack(frame);
     }
-    _walkAnimation = Animation::createWithSpriteFrames(frames, 0.2f);
+    _walkAnimation = Animation::createWithSpriteFrames(frames, 0.15f); // 弓箭手动画更快
     _walkAnimation->setLoops(-1);
 }
 
-void Player1::playWalkAnimation() {
+void Archer::playWalkAnimation() {
     if (_walkAction) stopAction(_walkAction);
     _walkAction = runAction(Animate::create(_walkAnimation));
 }
 
-void Player1::stopWalkAnimation() {
+void Archer::stopWalkAnimation() {
     if (_walkAction) {
         stopAction(_walkAction);
         _walkAction = nullptr;
@@ -65,9 +62,8 @@ void Player1::stopWalkAnimation() {
     }
 }
 
-
-
-void Player1::moveToTarget(Vec2 targetPos, float duration) {
+// Archer.cpp 中的 moveToTarget 函数
+void Archer::moveToTarget(Vec2 targetPos, float duration) {
     if (_moveAction) stopAction(_moveAction);
 
     bool* hasEntered = new bool(false);
@@ -78,7 +74,7 @@ void Player1::moveToTarget(Vec2 targetPos, float duration) {
         if (*hasEntered) return;
 
         float distance = this->getPosition().distance(targetPos);
-        const float NEAR_DISTANCE = 500.0f;
+        const float NEAR_DISTANCE = 50.0f;
         if (distance <= NEAR_DISTANCE) {
             *hasEntered = true;
             // 加入攻击队列（替代原有销毁队列）

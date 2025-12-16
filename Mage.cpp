@@ -1,8 +1,21 @@
-#include "Player1.h"
+#include "Mage.h"
 #include "COCScene.h" // 包含场景头文件，访问队列
 
-Player1* Player1::create(Vec2 pos, float scale) {
-    auto p = new Player1();
+// ========== 新增：1级基础属性 ==========
+void Mage::initBaseAttributes() {
+    _maxHP = 1000;   // 1级最大生命值
+    _attack = 10;   // 1级攻击力
+}
+
+// ========== 新增：等级成长公式（每级血+20，攻+3） ==========
+void Mage::updateAttributesByLevel() {
+    int level = getLevel();
+    _maxHP = 1000 + (level - 1) * 20;  
+    _attack = 10 + (level - 1) * 3;  
+}
+
+Mage* Mage::create(Vec2 pos, float scale) {
+    auto p = new Mage();
     if (p && p->init(pos, scale)) {
         p->autorelease();
         return p;
@@ -11,36 +24,19 @@ Player1* Player1::create(Vec2 pos, float scale) {
     return nullptr;
 }
 
-bool Player1::init(Vec2 pos, float scale) {
- 
-    if (!initBase("player_walk1.png", pos, scale)) {
+bool Mage::init(Vec2 pos, float scale) {
+    // 法师静止图片
+    if (!initBase("mage_walk1.png", pos, scale)) {
+        CCLOG("法师初始化失败：图片不存在！");
         return false;
     }
-
-    _walkFrames = {
-        "player_walk1.png",
-        "player_walk2.png",
-        "player_walk3.png",
-        "player_walk4.png"
-    };
+    // 法师行走帧图片
+    _walkFrames = { "mage_walk1.png", "mage_walk2.png", "mage_walk3.png" };
     initWalkAnimation();
     return true;
 }
 
-// ========== 新增：1级基础属性 ==========
-void Player1::initBaseAttributes() {
-    _maxHP = 100;   // 1级最大生命值
-    _attack = 10;   // 1级攻击力
-}
-
-// ========== 新增：等级成长公式（每级血+20，攻+3） ==========
-void Player1::updateAttributesByLevel() {
-    int level = getLevel();
-    _maxHP = 100 + (level - 1) * 20; 
-    _attack = 10 + (level - 1) * 3; 
-}
-
-void Player1::initWalkAnimation() {
+void Mage::initWalkAnimation() {
     Vector<SpriteFrame*> frames;
     for (auto& path : _walkFrames) {
         auto texture = Director::getInstance()->getTextureCache()->addImage(path);
@@ -48,16 +44,17 @@ void Player1::initWalkAnimation() {
             texture->getContentSize().width, texture->getContentSize().height));
         frames.pushBack(frame);
     }
-    _walkAnimation = Animation::createWithSpriteFrames(frames, 0.2f);
+    // 法师动画最慢（0.25秒/帧）
+    _walkAnimation = Animation::createWithSpriteFrames(frames, 0.25f);
     _walkAnimation->setLoops(-1);
 }
 
-void Player1::playWalkAnimation() {
+void Mage::playWalkAnimation() {
     if (_walkAction) stopAction(_walkAction);
     _walkAction = runAction(Animate::create(_walkAnimation));
 }
 
-void Player1::stopWalkAnimation() {
+void Mage::stopWalkAnimation() {
     if (_walkAction) {
         stopAction(_walkAction);
         _walkAction = nullptr;
@@ -65,9 +62,7 @@ void Player1::stopWalkAnimation() {
     }
 }
 
-
-
-void Player1::moveToTarget(Vec2 targetPos, float duration) {
+void Mage::moveToTarget(Vec2 targetPos, float duration) {
     if (_moveAction) stopAction(_moveAction);
 
     bool* hasEntered = new bool(false);
@@ -78,10 +73,10 @@ void Player1::moveToTarget(Vec2 targetPos, float duration) {
         if (*hasEntered) return;
 
         float distance = this->getPosition().distance(targetPos);
-        const float NEAR_DISTANCE = 500.0f;
+        const float NEAR_DISTANCE = 50.0f;
         if (distance <= NEAR_DISTANCE) {
             *hasEntered = true;
-            // 加入攻击队列（替代原有销毁队列）
+            // 加入攻击队列
             COC* scene = dynamic_cast<COC*>(this->getParent());
             if (scene) {
                 scene->addToAttackQueue(this);
