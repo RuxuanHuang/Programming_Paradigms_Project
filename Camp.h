@@ -6,6 +6,8 @@
 #include "cocos2d.h"
 #include "Building.h" // 包含基类头文件
 #include "TownHall.h" // 包含子类头文件
+#include "BuildersHut.h"
+
 
 class Camp : public cocos2d::Scene
 {
@@ -15,11 +17,14 @@ public:
     void menuCloseCallback(cocos2d::Ref* pSender);
     CREATE_FUNC(Camp);
 
+    void selectBuilding(Building* building);
+    void clearSelection();
+
 private:
     // --- 场景内部变量 ---
 
     // 使用基类指针存储建筑对象
-    Building* _townHall;
+    Building* _building;
 
     // 地图拖动状态
     bool _isMapDragging;
@@ -33,6 +38,9 @@ private:
 
     // 边界限制
     void limitMapPos(cocos2d::Sprite* sprite);
+
+    Building* _selectedBuilding = nullptr;
+    bool _mapMoved = false;
 };
 
 #endif // __CAMP_H__

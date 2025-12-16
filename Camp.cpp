@@ -1,7 +1,9 @@
 #include "Camp.h"
 #include"Building.h"
+#include"BuildersHut.h"
 #include "BuildingActionBar.h"  // 新增：包含操作栏头文件
 #include "ui/CocosGUI.h"
+
 
 USING_NS_CC;
 
@@ -33,17 +35,12 @@ bool Camp::init()
     if (!Scene::init())
     {
         return false;
-    }
-
-    auto visibleSize = Director::getInstance()->getVisibleSize();
+    }    auto visibleSize = Director::getInstance()->getVisibleSize();
     Vec2 origin = Director::getInstance()->getVisibleOrigin();
 
-    // ========== 新增：初始化建筑操作栏 ==========
+    // ========== 初始化建筑操作栏 ==========
     auto actionBar = BuildingActionBar::getInstance();
     this->addChild(actionBar, 1000); // 高z-order确保在最前面
-
-   
- 
 
     // 地图精灵初始化
     auto mapSprite = Sprite::create("Camp.png");
@@ -68,23 +65,35 @@ bool Camp::init()
 
     // 初始化拖动状态
     _isMapDragging = false;
-    // 移除：_isBuildingDragging = false; 
 
-    // ========== 修改：创建大本营 ==========
+    // ========== 创建大本营 ==========
     auto townHall = TownHall::create("Town_hall1.png");
     if (townHall == nullptr)
     {
         problemLoading("'Town_hall1.png' ");
     }
     else {
-        // 重要：将大本营添加到地图精灵，而不是场景
-        Vec2 mapCenter = Vec2(mapSprite->getContentSize().width / 2,
-            mapSprite->getContentSize().height / 2);
-        townHall->setPosition(mapCenter);
+        // 将大本营添加到地图精灵，而不是场景
+        townHall->setTilePosition(mapSprite, 0.5, 0.5);
         mapSprite->addChild(townHall, 1);
-        _townHall = townHall;
+        _building = townHall;
 
-        // 调试：显示网格范围（可选）
+        // 显示网格范围
+        // townHall->drawDebugMapRange(mapSprite);
+    }
+
+    auto BuilderHut = BuildersHut::create("Builders_Hut1.png");
+    if (BuilderHut == nullptr)
+    {
+        problemLoading("'Builders_Hut1.png' ");
+    }
+    else {
+        // 将大本营添加到地图精灵，而不是场景
+        BuilderHut->setTilePosition(mapSprite, 5.5, 5.5);
+        mapSprite->addChild(BuilderHut, 1);
+        _building = BuilderHut;
+
+        // 显示网格范围
         // townHall->drawDebugMapRange(mapSprite);
     }
 
@@ -137,86 +146,65 @@ void Camp::onMouseScroll(Event* event)
     limitMapPos(campSprite);
 }
 
-// 地图鼠标按下：开始拖动地图（如果房子没有被拖动）
 void Camp::onMapMouseDown(Event* event)
 {
-    EventMouse* e = static_cast<EventMouse*>(event);
-    if (e->getMouseButton() == EventMouse::MouseButton::BUTTON_LEFT)
-    {
-        // ========== 修改：检查是否有任何建筑正在拖动 ==========
-        auto campSprite = dynamic_cast<Sprite*>(this->getChildByTag(CAMP_SPRITE_TAG));
-        bool anyBuildingDragging = false;
+    auto e = static_cast<EventMouse*>(event);
+    if (e->getMouseButton() != EventMouse::MouseButton::BUTTON_LEFT)
+        return;
 
-        if (campSprite) {
-            for (auto child : campSprite->getChildren()) {
-                Building* building = dynamic_cast<Building*>(child);
-                if (building && building->isDragging()) {
-                    anyBuildingDragging = true;
-                    break;
-                }
-            }
-        }
+    // 建筑优先
+    if (_selectedBuilding && _selectedBuilding->isDragging())
+        return;
 
-        // 如果有建筑正在拖动，不开始地图拖动
-        if (anyBuildingDragging) {
-            return;
-        }
-
-        _isMapDragging = true;
-        _lastMapMousePos = Vec2(e->getCursorX(), e->getCursorY());
-    }
+    _isMapDragging = true;
+    _mapMoved = false;  // ? 重置
+    _lastMapMousePos = Vec2(e->getCursorX(), e->getCursorY());
 }
 
-// 地图鼠标抬起：清除地图拖动状态
+
+
+
 void Camp::onMapMouseUp(Event* event)
 {
-    EventMouse* e = static_cast<EventMouse*>(event);
-    if (e->getMouseButton() == EventMouse::MouseButton::BUTTON_LEFT)
-    {
-        // 清除地图拖动状态
-        _isMapDragging = false;
+    auto e = static_cast<EventMouse*>(event);
+    if (e->getMouseButton() != EventMouse::MouseButton::BUTTON_LEFT)
+        return;
 
-        // 建筑的拖动状态由 Building::onBuildingMouseUp 负责清除
+    _isMapDragging = false;
+
+    // ? 只有“点击空白”才取消选中
+    if (!_mapMoved) {
+        clearSelection();
     }
 }
 
-// 地图鼠标移动：移动地图
+
+
 void Camp::onMapMouseMove(Event* event)
 {
-    EventMouse* e = static_cast<EventMouse*>(event);
+    if (!_isMapDragging) return;
 
-    // ========== 修改：检查是否有任何建筑正在拖动 ==========
-    auto campSprite = dynamic_cast<Sprite*>(this->getChildByTag(CAMP_SPRITE_TAG));
-    bool anyBuildingDragging = false;
-
-    if (campSprite) {
-        for (auto child : campSprite->getChildren()) {
-            Building* building = dynamic_cast<Building*>(child);
-            if (building && building->isDragging()) {
-                anyBuildingDragging = true;
-                break;
-            }
-        }
-    }
-
-    // 只有在地图拖动中，并且没有建筑被拖动时才执行
-    if (!_isMapDragging || anyBuildingDragging) {
+    if (_selectedBuilding && _selectedBuilding->isDragging())
         return;
+
+    auto e = static_cast<EventMouse*>(event);
+    Vec2 current(e->getCursorX(), e->getCursorY());
+    Vec2 delta = current - _lastMapMousePos;
+
+    // ? 只有真的移动了，才算拖拽
+    if (delta.lengthSquared() > 1.0f) {
+        _mapMoved = true;
     }
 
-    Vec2 _currentMousePos = Vec2(e->getCursorX(), e->getCursorY());
-    Vec2 delta = _currentMousePos - _lastMapMousePos;
-    auto mapSprite = dynamic_cast<Sprite*>(this->getChildByTag(CAMP_SPRITE_TAG));
+    auto mapSprite = dynamic_cast<Sprite*>(getChildByTag(CAMP_SPRITE_TAG));
+    mapSprite->setPosition(mapSprite->getPosition() + delta);
+    limitMapPos(mapSprite);
 
-    if (mapSprite) {
-        Vec2 currentMapPos = mapSprite->getPosition();
-        Vec2 newMapPos = currentMapPos + delta;
-
-        mapSprite->setPosition(newMapPos);
-        limitMapPos(mapSprite);
-    }
-    _lastMapMousePos = _currentMousePos;
+    _lastMapMousePos = current;
 }
+
+
+
 
 // ----------------------------------------------------------------------------------
 // MARK: - 边界限制逻辑（保持不变）
@@ -278,4 +266,28 @@ void Camp::limitMapPos(Sprite* sprite)
     currentY = clampf(currentY, finalMinY, finalMaxY);
 
     sprite->setPosition(currentX, currentY);
+}
+void Camp::selectBuilding(Building* building)
+{
+    if (_selectedBuilding == building)
+        return;
+
+    // 取消旧的
+    if (_selectedBuilding) {
+        _selectedBuilding->setSelected(false);
+    }
+
+    _selectedBuilding = building;
+
+    if (_selectedBuilding) {
+        _selectedBuilding->setSelected(true);
+    }
+}
+
+void Camp::clearSelection()
+{
+    if (_selectedBuilding) {
+        _selectedBuilding->setSelected(false);
+        _selectedBuilding = nullptr;
+    }
 }
