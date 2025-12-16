@@ -2,7 +2,7 @@
 
 USING_NS_CC;
 
-// È«¾Ö±äÁ¿£¬ÓÃÓÚ´æ´¢´ÓBeachSceneÑ¡ÔñµÄÍ¼Æ¬ĞÅÏ¢
+// å…¨å±€å˜é‡
 static int g_selectedImageIndex = -1;
 static cocos2d::Rect g_selectedImageRect = cocos2d::Rect::ZERO;
 static cocos2d::Color3B g_selectedImageColor = cocos2d::Color3B::WHITE;
@@ -10,13 +10,17 @@ static cocos2d::Texture2D* g_selectedTexture = nullptr;
 static cocos2d::Rect g_selectedTextureRect = cocos2d::Rect::ZERO;
 static std::string g_selectedImageName = "";
 
-// Íæ¼Ò×ÊÔ´
-static int g_playerGold = 100;    // ³õÊ¼½ğ±Ò
-static int g_playerCrystal = 50;  // ³õÊ¼±¦Ê¯
+// ç©å®¶èµ„æº
+static int g_playerGold = 100;
+static int g_playerCrystal = 50;
 
-// Í¼Æ¬¼Û¸ñ¶¨Òå
-static const std::vector<int> g_imageGoldPrices = { 20, 30, 25, 40, 35 };   // Í¼Æ¬µÄ½ğ±Ò¼Û¸ñ
-static const std::vector<int> g_imageCrystalPrices = { 5, 8, 6, 10, 7 };   // Í¼Æ¬µÄ±¦Ê¯¼Û¸ñ
+// å›¾ç‰‡ä»·æ ¼è¡¨
+static const std::vector<int> g_imageGoldPrices = { 20, 30, 25, 40, 35, 45, 50, 60 };
+static const std::vector<int> g_imageCrystalPrices = { 5, 8, 6, 10, 7, 12, 15, 20 };
+
+// é™æ€å˜é‡åˆå§‹åŒ–
+int HelloWorld::s_backgroundAudioID = AudioEngine::INVALID_AUDIO_ID;
+int BeachScene::s_shopBackgroundAudioID = AudioEngine::INVALID_AUDIO_ID;
 
 Scene* HelloWorld::createScene()
 {
@@ -33,11 +37,19 @@ bool HelloWorld::init()
     auto visibleSize = Director::getInstance()->getVisibleSize();
     Vec2 origin = Director::getInstance()->getVisibleOrigin();
 
-    // ÉèÖÃÏÄÈÕº£±õ±³¾°
+    // é¢„åŠ è½½éœ€è¦çš„éŸ³é¢‘æ–‡ä»¶
+    AudioEngine::preload("background.mp3");
+    AudioEngine::preload("click.mp3");
+
+    // æ’­æ”¾ä¸»åœºæ™¯èƒŒæ™¯éŸ³ä¹
+    this->scheduleOnce([&](float dt) {
+        playBackgroundMusic();
+        }, 0.1f, "play_bg_music");
+
+    // åˆ›å»ºèƒŒæ™¯å›¾ç‰‡
     auto background = Sprite::create("back.png");
     if (background != nullptr)
     {
-        // ÉèÖÃ±³¾°Í¼Æ¬ÊÊÓ¦ÆÁÄ»´óĞ¡
         background->setScaleX(visibleSize.width / background->getContentSize().width);
         background->setScaleY(visibleSize.height / background->getContentSize().height);
         background->setPosition(Vec2(visibleSize.width / 2 + origin.x, visibleSize.height / 2 + origin.y));
@@ -45,25 +57,21 @@ bool HelloWorld::init()
     }
     else
     {
-        // Èç¹û±³¾°Í¼Æ¬¼ÓÔØÊ§°Ü£¬Ê¹ÓÃÀ¶É«±³¾°×÷Îª±¸ÓÃ
         auto fallbackBackground = LayerColor::create(Color4B(0, 150, 255, 255),
             visibleSize.width, visibleSize.height);
         this->addChild(fallbackBackground, -1);
     }
 
-    // ÔÚ¶¥²¿ÏÔÊ¾Íæ¼Ò×ÊÔ´
+    // åœ¨é¡¶éƒ¨æ˜¾ç¤ºç©å®¶èµ„æº
     displayPlayerResources();
 
-    // ¼ì²éÊÇ·ñÓĞ´ÓBeachSceneÑ¡ÔñµÄÍ¼Æ¬
+    // æ£€æŸ¥æ˜¯å¦æœ‰ä»BeachSceneé€‰æ‹©çš„å›¾ç‰‡
     if (g_selectedImageIndex != -1) {
-        // ´´½¨²¢ÏÔÊ¾Ñ¡ÔñµÄÍ¼Æ¬
         auto selectedSprite = createSelectedImageSprite();
         if (selectedSprite) {
-            // ÔÚÆÁÄ»ÖĞ¼ä·ÅÖÃ
             selectedSprite->setPosition(Vec2(visibleSize.width / 2, visibleSize.height / 2));
             this->addChild(selectedSprite, 1);
 
-            // Ìí¼Ó¶¯»­Ğ§¹û
             selectedSprite->setScale(0);
             selectedSprite->runAction(Sequence::create(
                 ScaleTo::create(0.3, 1.2),
@@ -71,13 +79,11 @@ bool HelloWorld::init()
                 nullptr
             ));
 
-            // Ìí¼ÓÌáÊ¾ÎÄ×Ö
-            auto successLabel = Label::createWithTTF("³É¹¦Ìí¼ÓÍ¼Æ¬µ½Ö÷³¡¾°£¡", "fonts/arial.ttf", 24);
+            auto successLabel = Label::createWithTTF("æˆåŠŸè´­ä¹°å›¾ç‰‡å¹¶æ”¾ç½®åˆ°åœºæ™¯ä¸­", "fonts/arial.ttf", 24);
             successLabel->setPosition(Vec2(visibleSize.width / 2, visibleSize.height - 100));
             successLabel->setColor(Color3B::GREEN);
             this->addChild(successLabel, 1);
 
-            // 3Ãëºóµ­³öÌáÊ¾
             successLabel->runAction(Sequence::create(
                 DelayTime::create(3.0f),
                 FadeOut::create(0.5f),
@@ -86,48 +92,47 @@ bool HelloWorld::init()
             ));
         }
 
-        // ÖØÖÃÑ¡Ôñ×´Ì¬
+        // é‡ç½®é€‰æ‹©çŠ¶æ€
         g_selectedImageIndex = -1;
     }
 
-    // ÔÚÓÒÏÂ½ÇÌí¼ÓÃ¨Í¼±ê
+    // åˆ›å»ºå³ä¸‹è§’å•†åº—å›¾æ ‡
     auto catIcon = Sprite::create("house.png");
     if (catIcon == nullptr) {
-        // ±¸ÓÃ·½°¸£º´´½¨¼òµ¥Í¼±ê
         catIcon = Sprite::create();
         catIcon->setTextureRect(Rect(0, 0, 100, 100));
         catIcon->setColor(Color3B::WHITE);
     }
 
-    // ÉèÖÃÃ¨Í¼±êÔÚÓÒÏÂ½Ç
     float iconSize = 100.0f;
     catIcon->setScale(iconSize / catIcon->getContentSize().width);
     catIcon->setPosition(Vec2(visibleSize.width - iconSize / 2 - 20,
         iconSize / 2 + 20));
 
-    // Ìí¼Ó´¥ÃşÊÂ¼ş
+    // æ·»åŠ è§¦æ‘¸äº‹ä»¶
     auto listener = EventListenerTouchOneByOne::create();
     listener->setSwallowTouches(true);
     listener->onTouchBegan = [catIcon](Touch* touch, Event* event) {
         if (catIcon->getBoundingBox().containsPoint(touch->getLocation())) {
-            catIcon->runAction(ScaleTo::create(0.1, 1.1)); // µã»÷Ê±·Å´óĞ§¹û
+            catIcon->runAction(ScaleTo::create(0.1, 1.1));
             return true;
         }
         return false;
         };
 
     listener->onTouchEnded = [this, catIcon](Touch* touch, Event* event) {
-        catIcon->runAction(ScaleTo::create(0.1, 1.0)); // »Ö¸´´óĞ¡
+        catIcon->runAction(ScaleTo::create(0.1, 1.0));
         if (catIcon->getBoundingBox().containsPoint(touch->getLocation())) {
-            // µã»÷ºó½øÈëº£Ì²³¡¾°
+            // æ’­æ”¾ç‚¹å‡»éŸ³æ•ˆ
+            AudioEngine::play2d("click.mp3", false, 0.8f);
             this->openBeachScene();
         }
         };
 
     _eventDispatcher->addEventListenerWithSceneGraphPriority(listener, catIcon);
 
-    // Ìí¼ÓÌáÊ¾ÎÄ×Ö
-    auto tipLabel = Label::createWithTTF("µã»÷ÓÒÏÂ½ÇµÄÃ¨½øÈëÉÌµê", "fonts/arial.ttf", 24);
+    // æ·»åŠ æç¤ºæ–‡å­—
+    auto tipLabel = Label::createWithTTF("ç‚¹å‡»å³ä¸‹è§’çš„çŒ«è¿›å…¥å•†åº—", "fonts/arial.ttf", 24);
     if (tipLabel) {
         tipLabel->setPosition(Vec2(visibleSize.width / 2, visibleSize.height / 2));
         tipLabel->setColor(Color3B::WHITE);
@@ -143,41 +148,40 @@ void HelloWorld::displayPlayerResources()
 {
     auto visibleSize = Director::getInstance()->getVisibleSize();
 
-
-    // ½ğ±ÒÍ¼±ê
+    // é‡‘å¸å›¾æ ‡
     auto goldIcon = Sprite::create("Gold.png");
     if (goldIcon == nullptr) {
         goldIcon = Sprite::create();
-        goldIcon->setTextureRect(Rect(0, 0, 50, 50));  // ´Ó40·Å´óµ½50
+        goldIcon->setTextureRect(Rect(0, 0, 50, 50));
         goldIcon->setColor(Color3B::YELLOW);
     }
     goldIcon->setPosition(Vec2(100, visibleSize.height - 30));
-    goldIcon->setScale(1.0f);  // ´Ó0.8·Å´óµ½1.0
+    goldIcon->setScale(1.0f);
     this->addChild(goldIcon, 6);
 
-    // ½ğ±ÒÊıÁ¿
+    // é‡‘å¸æ•°é‡
     auto goldLabel = Label::createWithTTF(StringUtils::format("%d", g_playerGold),
-        "fonts/arial.ttf", 28);  // ´Ó24·Å´óµ½28
-    goldLabel->setPosition(Vec2(160, visibleSize.height - 30));  // ´Ó150µ÷Õûµ½160
+        "fonts/arial.ttf", 28);
+    goldLabel->setPosition(Vec2(160, visibleSize.height - 30));
     goldLabel->setColor(Color3B::YELLOW);
     goldLabel->setTag(GOLD_LABEL_TAG);
     this->addChild(goldLabel, 6);
 
-    // ±¦Ê¯Í¼±ê
+    // æ°´æ™¶å›¾æ ‡
     auto crystalIcon = Sprite::create("Crystal.png");
     if (crystalIcon == nullptr) {
         crystalIcon = Sprite::create();
-        crystalIcon->setTextureRect(Rect(0, 0, 50, 50));  // ´Ó40·Å´óµ½50
+        crystalIcon->setTextureRect(Rect(0, 0, 50, 50));
         crystalIcon->setColor(Color3B::BLUE);
     }
-    crystalIcon->setPosition(Vec2(280, visibleSize.height - 30));  // ´Ó250µ÷Õûµ½280
-    crystalIcon->setScale(1.0f);  // ´Ó0.8·Å´óµ½1.0
+    crystalIcon->setPosition(Vec2(280, visibleSize.height - 30));
+    crystalIcon->setScale(1.0f);
     this->addChild(crystalIcon, 6);
 
-    // ±¦Ê¯ÊıÁ¿
+    // æ°´æ™¶æ•°é‡
     auto crystalLabel = Label::createWithTTF(StringUtils::format("%d", g_playerCrystal),
-        "fonts/arial.ttf", 28);  // ´Ó24·Å´óµ½28
-    crystalLabel->setPosition(Vec2(340, visibleSize.height - 30));  // ´Ó300µ÷Õûµ½340
+        "fonts/arial.ttf", 28);
+    crystalLabel->setPosition(Vec2(340, visibleSize.height - 30));
     crystalLabel->setColor(Color3B::BLUE);
     crystalLabel->setTag(CRYSTAL_LABEL_TAG);
     this->addChild(crystalLabel, 6);
@@ -192,29 +196,19 @@ cocos2d::Sprite* HelloWorld::createSelectedImageSprite()
     Sprite* sprite = nullptr;
 
     if (g_selectedTexture) {
-        // Èç¹ûÓĞÎÆÀí£¬Ê¹ÓÃÎÆÀí´´½¨¾«Áé
         sprite = Sprite::create();
         sprite->setTexture(g_selectedTexture);
         sprite->setTextureRect(g_selectedTextureRect);
     }
     else if (!g_selectedImageRect.equals(Rect::ZERO)) {
-        // Èç¹ûÓĞÎÆÀí¾ØĞÎ£¬Ê¹ÓÃ¾ØĞÎ´´½¨¾«Áé
         sprite = Sprite::create();
         sprite->setTextureRect(g_selectedImageRect);
     }
 
     if (sprite) {
-        // ÉèÖÃÑÕÉ«
         sprite->setColor(g_selectedImageColor);
 
-        // Ìí¼Ó±êÇ©ÏÔÊ¾Í¼Æ¬±àºÅ
-        auto label = Label::createWithTTF(StringUtils::format("Í¼Æ¬%d", g_selectedImageIndex + 1),
-            "fonts/arial.ttf", 20);
-        label->setPosition(Vec2(0, -sprite->getContentSize().height / 2 - 20));
-        label->setColor(Color3B::YELLOW);
-        sprite->addChild(label);
 
-        // Ìí¼Óµã»÷Ğ§¹û
         auto touchListener = EventListenerTouchOneByOne::create();
         touchListener->onTouchBegan = [sprite](Touch* touch, Event* event) {
             if (sprite->getBoundingBox().containsPoint(touch->getLocation())) {
@@ -242,17 +236,62 @@ cocos2d::Sprite* HelloWorld::createSelectedImageSprite()
 
 void HelloWorld::openBeachScene()
 {
-    // ´´½¨ĞÂ³¡¾°
+    // åœæ­¢ä¸»åœºæ™¯èƒŒæ™¯éŸ³ä¹
+    stopBackgroundMusic();
+
     auto beachScene = Scene::create();
     auto beachLayer = BeachScene::create();
     beachScene->addChild(beachLayer);
 
-    // Ìí¼Ó¹ı¶ÉĞ§¹û
-    auto transition = TransitionFade::create(0.5, beachScene, Color3B::BLACK);
+    auto transition = TransitionFade::create(0.5, beachScene, Color3B::WHITE);
     Director::getInstance()->replaceScene(transition);
 }
 
-// BeachScene ÊµÏÖ
+void HelloWorld::onEnter()
+{
+    Scene::onEnter();
+    playBackgroundMusic();
+}
+
+void HelloWorld::onExit()
+{
+    stopBackgroundMusic();
+    this->removeAllChildrenWithCleanup(true);
+    this->unschedule("play_bg_music");
+    Scene::onExit();
+}
+
+// éŸ³é¢‘æ§åˆ¶æ–¹æ³•å®ç°
+void HelloWorld::playBackgroundMusic()
+{
+    if (s_backgroundAudioID == AudioEngine::INVALID_AUDIO_ID) {
+        // ç¬¬ä¸€æ¬¡æ’­æ”¾èƒŒæ™¯éŸ³ä¹ï¼Œtrueè¡¨ç¤ºå¾ªç¯æ’­æ”¾
+        s_backgroundAudioID = AudioEngine::play2d("background.mp3", true, 0.5f);
+    }
+    else {
+        // è·å–éŸ³é¢‘çŠ¶æ€
+        auto state = AudioEngine::getState(s_backgroundAudioID);
+
+        if (state == AudioEngine::AudioState::ERROR) {
+            // å¦‚æœæ˜¯é”™è¯¯çŠ¶æ€ï¼Œé‡æ–°æ’­æ”¾
+            AudioEngine::stop(s_backgroundAudioID);
+            s_backgroundAudioID = AudioEngine::play2d("background.mp3", true, 0.5f);
+        }
+        else if (state == AudioEngine::AudioState::PAUSED) {
+            AudioEngine::resume(s_backgroundAudioID);
+        }
+    }
+}
+
+void HelloWorld::stopBackgroundMusic()
+{
+    if (s_backgroundAudioID != AudioEngine::INVALID_AUDIO_ID) {
+        AudioEngine::stop(s_backgroundAudioID);
+        s_backgroundAudioID = AudioEngine::INVALID_AUDIO_ID;
+    }
+}
+
+// BeachScene å®ç°
 bool BeachScene::init()
 {
     if (!Layer::init())
@@ -261,23 +300,34 @@ bool BeachScene::init()
     }
 
     auto visibleSize = Director::getInstance()->getVisibleSize();
-    Vec2 origin = Director::getInstance()->getVisibleOrigin();
 
-    // ³õÊ¼Îª´¿ºÚ±³¾°
-    auto blackBackground = LayerColor::create(Color4B::BLACK, visibleSize.width, visibleSize.height);
-    this->addChild(blackBackground, -1);
-    
-    // ÔÚ¶¥²¿ÏÔÊ¾Íæ¼Ò×ÊÔ´
+    // åˆ›å»ºèƒŒæ™¯å›¾ç‰‡
+    Vec2 origin = Director::getInstance()->getVisibleOrigin();
+    auto background = Sprite::create("shop.png");
+    if (background != nullptr)
+    {
+        background->setScaleX(visibleSize.width / background->getContentSize().width);
+        background->setScaleY(visibleSize.height / background->getContentSize().height);
+        background->setPosition(Vec2(visibleSize.width / 2 + origin.x, visibleSize.height / 2 + origin.y));
+        this->addChild(background, -1);
+    }
+    else
+    {
+        auto fallbackBackground = LayerColor::create(Color4B(0, 150, 255, 255),
+            visibleSize.width, visibleSize.height);
+        this->addChild(fallbackBackground, -1);
+    }
+
+    // åœ¨é¡¶éƒ¨æ˜¾ç¤ºç©å®¶èµ„æº
     displayPlayerResources();
 
-    // Ìí¼Ó·µ»Ø°´Å¥
+    // æ·»åŠ è¿”å›æŒ‰é’®
     auto backButton = Sprite::create("back_button.png");
     if (backButton == nullptr) {
         backButton = Sprite::create();
         backButton->setTextureRect(Rect(0, 0, 60, 60));
         backButton->setColor(Color3B::RED);
 
-        // Ìí¼Ó"X"±ê¼Ç
         auto drawNode = DrawNode::create();
         drawNode->drawLine(Vec2(10, 10), Vec2(50, 50), Color4F::WHITE);
         drawNode->drawLine(Vec2(50, 10), Vec2(10, 50), Color4F::WHITE);
@@ -287,22 +337,24 @@ bool BeachScene::init()
     backButton->setPosition(Vec2(40, visibleSize.height - 100));
     backButton->setScale(0.8f);
 
-    // ·µ»Ø°´Å¥´¥ÃşÊÂ¼ş
+    // è¿”å›æŒ‰é’®è§¦æ‘¸äº‹ä»¶
     auto backListener = EventListenerTouchOneByOne::create();
     backListener->setSwallowTouches(true);
     backListener->onTouchBegan = [backButton](Touch* touch, Event* event) {
         if (backButton->getBoundingBox().containsPoint(touch->getLocation())) {
-            backButton->runAction(ScaleTo::create(0.1, 0.9)); // µã»÷Ê±ËõĞ¡Ğ§¹û
+            backButton->runAction(ScaleTo::create(0.1, 0.9));
             return true;
         }
         return false;
         };
 
     backListener->onTouchEnded = [this, backButton](Touch* touch, Event* event) {
-        backButton->runAction(ScaleTo::create(0.1, 0.8)); // »Ö¸´´óĞ¡
-
+        backButton->runAction(ScaleTo::create(0.1, 0.8));
         if (backButton->getBoundingBox().containsPoint(touch->getLocation())) {
-            // ·µ»ØÖ÷³¡¾°
+            // æ’­æ”¾ç‚¹å‡»éŸ³æ•ˆ
+            AudioEngine::play2d("click.mp3", false, 0.8f);
+
+            // è¿”å›ä¸»åœºæ™¯
             auto mainScene = HelloWorld::createScene();
             auto transition = TransitionFade::create(0.5, mainScene, Color3B::BLACK);
             Director::getInstance()->replaceScene(transition);
@@ -312,64 +364,87 @@ bool BeachScene::init()
     _eventDispatcher->addEventListenerWithSceneGraphPriority(backListener, backButton);
     this->addChild(backButton, 10);
 
-    // Ìí¼ÓÌáÊ¾ÎÄ×Ö
-    auto instructionLabel = Label::createWithTTF("µã»÷Í¼Æ¬¹ºÂò²¢·µ»ØÖ÷³¡¾°", "fonts/arial.ttf", 24);
+    // æ·»åŠ è¯´æ˜æ–‡å­—
+    auto instructionLabel = Label::createWithTTF("ç‚¹å‡»å›¾ç‰‡è´­ä¹°å¹¶æ”¾ç½®åˆ°åœºæ™¯ä¸­", "fonts/arial.ttf", 24);
     instructionLabel->setPosition(Vec2(visibleSize.width / 2, visibleSize.height - 150));
     instructionLabel->setColor(Color3B::YELLOW);
     this->addChild(instructionLabel, 1);
 
-    // ¼ÓÔØËùÓĞ¿ÉÓÃµÄÍ¼Æ¬
+    // åŠ è½½æ‰€æœ‰å¯ç”¨å›¾ç‰‡
     loadAllImages();
 
-    // ´´½¨Í¼Æ¬Ñ¡ÔñÇøÓò
+    // åˆ›å»ºå›¾ç‰‡é€‰æ‹©åŒºåŸŸ
     createImageSelectionArea();
 
     return true;
+}
+
+void BeachScene::onEnter()
+{
+    Layer::onEnter();
+
+    // é¢„åŠ è½½å•†åº—éœ€è¦çš„éŸ³é¢‘
+    AudioEngine::preload("shop.mp3");
+    AudioEngine::preload("gold.mp3");
+
+    // æ’­æ”¾å•†åº—èƒŒæ™¯éŸ³ä¹
+    playShopBackgroundMusic();
+}
+
+void BeachScene::onExit()
+{
+    // åœæ­¢å•†åº—èƒŒæ™¯éŸ³ä¹
+    stopShopBackgroundMusic();
+
+    // æ¸…ç†æ‰€æœ‰å­èŠ‚ç‚¹
+    this->removeAllChildrenWithCleanup(true);
+
+    Layer::onExit();
 }
 
 void BeachScene::displayPlayerResources()
 {
     auto visibleSize = Director::getInstance()->getVisibleSize();
 
-    // ´´½¨×ÊÔ´ÏÔÊ¾±³¾°
+    // åˆ›å»ºèµ„æºæ˜¾ç¤ºèƒŒæ™¯
     auto resourceBg = LayerColor::create(Color4B(0, 0, 0, 150), visibleSize.width, 60);
     resourceBg->setPosition(Vec2(0, visibleSize.height - 60));
     this->addChild(resourceBg, 5);
 
-    // ½ğ±ÒÍ¼±ê
+    // é‡‘å¸å›¾æ ‡
     auto goldIcon = Sprite::create("Gold.png");
     if (goldIcon == nullptr) {
         goldIcon = Sprite::create();
-        goldIcon->setTextureRect(Rect(0, 0, 50, 50));  // ´Ó40·Å´óµ½50
+        goldIcon->setTextureRect(Rect(0, 0, 50, 50));
         goldIcon->setColor(Color3B::YELLOW);
     }
     goldIcon->setPosition(Vec2(100, visibleSize.height - 30));
-    goldIcon->setScale(1.0f);  // ´Ó0.8·Å´óµ½1.0
+    goldIcon->setScale(1.0f);
     this->addChild(goldIcon, 6);
 
-    // ½ğ±ÒÊıÁ¿
+    // é‡‘å¸æ•°é‡
     auto goldLabel = Label::createWithTTF(StringUtils::format("%d", g_playerGold),
-        "fonts/arial.ttf", 28);  // ´Ó24·Å´óµ½28
-    goldLabel->setPosition(Vec2(160, visibleSize.height - 30));  // ´Ó150µ÷Õûµ½160
+        "fonts/arial.ttf", 28);
+    goldLabel->setPosition(Vec2(160, visibleSize.height - 30));
     goldLabel->setColor(Color3B::YELLOW);
     goldLabel->setTag(GOLD_LABEL_TAG);
     this->addChild(goldLabel, 6);
 
-    // ±¦Ê¯Í¼±ê
+    // æ°´æ™¶å›¾æ ‡
     auto crystalIcon = Sprite::create("Crystal.png");
     if (crystalIcon == nullptr) {
         crystalIcon = Sprite::create();
-        crystalIcon->setTextureRect(Rect(0, 0, 50, 50));  // ´Ó40·Å´óµ½50
+        crystalIcon->setTextureRect(Rect(0, 0, 50, 50));
         crystalIcon->setColor(Color3B::BLUE);
     }
-    crystalIcon->setPosition(Vec2(280, visibleSize.height - 30));  // ´Ó250µ÷Õûµ½280
-    crystalIcon->setScale(1.0f);  // ´Ó0.8·Å´óµ½1.0
+    crystalIcon->setPosition(Vec2(280, visibleSize.height - 30));
+    crystalIcon->setScale(1.0f);
     this->addChild(crystalIcon, 6);
 
-    // ±¦Ê¯ÊıÁ¿
+    // æ°´æ™¶æ•°é‡
     auto crystalLabel = Label::createWithTTF(StringUtils::format("%d", g_playerCrystal),
-        "fonts/arial.ttf", 28);  // ´Ó24·Å´óµ½28
-    crystalLabel->setPosition(Vec2(340, visibleSize.height - 30));  // ´Ó300µ÷Õûµ½340
+        "fonts/arial.ttf", 28);
+    crystalLabel->setPosition(Vec2(340, visibleSize.height - 30));
     crystalLabel->setColor(Color3B::BLUE);
     crystalLabel->setTag(CRYSTAL_LABEL_TAG);
     this->addChild(crystalLabel, 6);
@@ -377,15 +452,15 @@ void BeachScene::displayPlayerResources()
 
 void BeachScene::loadAllImages()
 {
-    // ¼ÓÔØ1(1)µ½1(5)ÎåÕÅÍ¼Æ¬
-    for (int i = 1; i <= 5; i++) {
+    // åŠ è½½1(1)åˆ°1(5)çš„å›¾ç‰‡
+    for (int i = 1; i <= 8; i++) {
         std::string filename = StringUtils::format("1 (%d).png", i);
         auto sprite = Sprite::create(filename);
         if (sprite != nullptr) {
             allImages.pushBack(sprite);
         }
         else {
-            // Èç¹ûÍ¼Æ¬¼ÓÔØÊ§°Ü£¬´´½¨Ò»¸öÕ¼Î»·û
+            // å¦‚æœå›¾ç‰‡åŠ è½½å¤±è´¥ï¼Œåˆ›å»ºä¸€ä¸ªå ä½ç¬¦
             auto placeholder = Sprite::create();
             placeholder->setTextureRect(Rect(0, 0, 100, 100));
             placeholder->setColor(Color3B(100 + i * 30, 100, 100 + i * 20));
@@ -394,7 +469,7 @@ void BeachScene::loadAllImages()
         }
     }
 
-    // ¼ÇÂ¼Ã¿¸ö¾«Áé¶ÔÓ¦µÄÎÄ¼şÃû
+    // è®°å½•æ¯ä¸ªç²¾çµå¯¹åº”çš„æ–‡ä»¶å
     for (int i = 0; i < allImages.size(); i++) {
         allImages.at(i)->setName(StringUtils::format("image_%d", i + 1));
     }
@@ -404,10 +479,10 @@ void BeachScene::createImageSelectionArea()
 {
     auto visibleSize = Director::getInstance()->getVisibleSize();
 
-    // ´´½¨Í¼Æ¬Õ¹Ê¾ÇøÓò
+    // åˆ›å»ºå›¾ç‰‡å±•ç¤ºåŒºåŸŸ
     createImageGallery();
 
-    // ´´½¨´¥ÃşÊÂ¼ş¼àÌıÆ÷
+    // æ·»åŠ è§¦æ‘¸äº‹ä»¶ç›‘å¬å™¨
     auto listener = EventListenerTouchOneByOne::create();
     listener->setSwallowTouches(true);
     listener->onTouchBegan = CC_CALLBACK_2(BeachScene::onTouchBegan, this);
@@ -419,53 +494,47 @@ void BeachScene::createImageGallery()
 {
     auto visibleSize = Director::getInstance()->getVisibleSize();
 
-    // Ìí¼ÓËµÃ÷ÎÄ×Ö
-    auto instructionLabel = Label::createWithTTF("µã»÷Í¼Æ¬¹ºÂò£¬½«×Ô¶¯·µ»ØÖ÷³¡¾°", "fonts/arial.ttf", 20);
-    instructionLabel->setPosition(Vec2(visibleSize.width / 2, 30));
-    instructionLabel->setColor(Color3B::WHITE);
-    this->addChild(instructionLabel, 6);
-
-    // Ìí¼Óµ±Ç°Ò³ÂëÏÔÊ¾
-    currentPageLabel = Label::createWithTTF("1/2", "fonts/arial.ttf", 20);
-    currentPageLabel->setPosition(Vec2(visibleSize.width / 2, 380));  // ´Ó330µ÷Õûµ½380
+    // æ·»åŠ å½“å‰é¡µç æ˜¾ç¤º
+    currentPageLabel = Label::createWithTTF("1/3", "fonts/arial.ttf", 20);
+    currentPageLabel->setPosition(Vec2(visibleSize.width / 2, 380));
     currentPageLabel->setColor(Color3B::WHITE);
     this->addChild(currentPageLabel, 6);
 
-    // Ìí¼ÓÏò×ó·­Ò³¼ıÍ·
+    // åˆ›å»ºå‘å·¦ç¿»é¡µç®­å¤´
     auto leftArrow = Sprite::create("arrow_left.png");
     if (leftArrow == nullptr) {
         leftArrow = Sprite::create();
         leftArrow->setTextureRect(Rect(0, 0, 40, 40));
         leftArrow->setColor(Color3B::GRAY);
 
-        // Ìí¼ÓÈı½ÇĞÎ¼ıÍ·
+        // ç»˜åˆ¶ä¸‰è§’å½¢ç®­å¤´
         auto triangle = DrawNode::create();
         Vec2 vertices[] = { Vec2(30, 10), Vec2(10, 20), Vec2(30, 30) };
         triangle->drawPolygon(vertices, 3, Color4F(1, 1, 1, 1), 0, Color4F(1, 1, 1, 1));
         leftArrow->addChild(triangle);
     }
-    leftArrow->setPosition(Vec2(30, 250));  // ´Ó200µ÷Õûµ½250
+    leftArrow->setPosition(Vec2(30, 250));
     leftArrow->setTag(LEFT_ARROW_TAG);
     this->addChild(leftArrow, 6);
 
-    // Ìí¼ÓÏòÓÒ·­Ò³¼ıÍ·
+    // åˆ›å»ºå‘å³ç¿»é¡µç®­å¤´
     auto rightArrow = Sprite::create("arrow_right.png");
     if (rightArrow == nullptr) {
         rightArrow = Sprite::create();
         rightArrow->setTextureRect(Rect(0, 0, 40, 40));
         rightArrow->setColor(Color3B::GRAY);
 
-        // Ìí¼ÓÈı½ÇĞÎ¼ıÍ·
+        // ç»˜åˆ¶ä¸‰è§’å½¢ç®­å¤´
         auto triangle = DrawNode::create();
         Vec2 vertices[] = { Vec2(10, 10), Vec2(30, 20), Vec2(10, 30) };
         triangle->drawPolygon(vertices, 3, Color4F(1, 1, 1, 1), 0, Color4F(1, 1, 1, 1));
         rightArrow->addChild(triangle);
     }
-    rightArrow->setPosition(Vec2(visibleSize.width - 30, 250));  // ´Ó200µ÷Õûµ½250
+    rightArrow->setPosition(Vec2(visibleSize.width - 30, 250));
     rightArrow->setTag(RIGHT_ARROW_TAG);
     this->addChild(rightArrow, 6);
 
-    // ³õÊ¼ÏÔÊ¾µÚÒ»Ò³
+    // åˆå§‹æ˜¾ç¤ºç¬¬ä¸€é¡µ
     currentPage = 0;
     updateGalleryDisplay();
 }
@@ -474,26 +543,26 @@ bool BeachScene::onTouchBegan(Touch* touch, Event* event)
 {
     auto touchPos = touch->getLocation();
 
-    // ¼ì²éÊÇ·ñµã»÷ÁË·­Ò³¼ıÍ·
+    // æ£€æŸ¥æ˜¯å¦ç‚¹å‡»äº†ç¿»é¡µç®­å¤´
     auto leftArrow = this->getChildByTag(LEFT_ARROW_TAG);
     auto rightArrow = this->getChildByTag(RIGHT_ARROW_TAG);
 
     if (leftArrow && leftArrow->getBoundingBox().containsPoint(touchPos)) {
-        leftArrow->setColor(Color3B(200, 200, 200)); // µã»÷Ğ§¹û
+        leftArrow->setColor(Color3B(200, 200, 200));
         return true;
     }
 
     if (rightArrow && rightArrow->getBoundingBox().containsPoint(touchPos)) {
-        rightArrow->setColor(Color3B(200, 200, 200)); // µã»÷Ğ§¹û
+        rightArrow->setColor(Color3B(200, 200, 200));
         return true;
     }
 
-    // ¼ì²éÊÇ·ñµã»÷ÁËÍ¼Æ¬
+    // æ£€æŸ¥æ˜¯å¦ç‚¹å‡»äº†å›¾ç‰‡
     for (int i = 0; i < visibleImages.size(); i++) {
         auto sprite = visibleImages.at(i);
         if (sprite && sprite->getBoundingBox().containsPoint(touchPos)) {
             touchedImageIndex = i;
-            sprite->runAction(ScaleTo::create(0.1, sprite->getScale() * 1.1)); // µã»÷Ğ§¹û
+            sprite->runAction(ScaleTo::create(0.1, sprite->getScale() * 1.1));
             return true;
         }
     }
@@ -501,118 +570,17 @@ bool BeachScene::onTouchBegan(Touch* touch, Event* event)
     return false;
 }
 
-void BeachScene::onTouchEnded(Touch* touch, Event* event)
-{
-    auto visibleSize = Director::getInstance()->getVisibleSize();  // ĞŞ¸´£ºÌí¼ÓvisibleSize¶¨Òå
-    auto touchPos = touch->getLocation();
-
-    // »Ö¸´¼ıÍ·ÑÕÉ«
-    auto leftArrow = this->getChildByTag(LEFT_ARROW_TAG);
-    auto rightArrow = this->getChildByTag(RIGHT_ARROW_TAG);
-
-    if (leftArrow) leftArrow->setColor(Color3B::GRAY);
-    if (rightArrow) rightArrow->setColor(Color3B::GRAY);
-
-    // »Ö¸´±»µã»÷Í¼Æ¬µÄ´óĞ¡
-    for (auto& sprite : visibleImages) {
-        sprite->stopAllActions();
-        sprite->runAction(ScaleTo::create(0.1, sprite->getScale())); // »Ö¸´Ô­Ê¼´óĞ¡
-    }
-
-    // ¼ì²éÊÇ·ñµã»÷ÁË×ó¼ıÍ·
-    if (leftArrow && leftArrow->getBoundingBox().containsPoint(touchPos)) {
-        if (currentPage > 0) {
-            currentPage--;
-            updateGalleryDisplay();
-        }
-        return;
-    }
-
-    // ¼ì²éÊÇ·ñµã»÷ÁËÓÒ¼ıÍ·
-    if (rightArrow && rightArrow->getBoundingBox().containsPoint(touchPos)) {
-        int totalPages = (int)ceil(allImages.size() / 3.0f);
-        if (currentPage < totalPages - 1) {
-            currentPage++;
-            updateGalleryDisplay();
-        }
-        return;
-    }
-
-    // ¼ì²éÊÇ·ñµã»÷ÁËÍ¼Æ¬
-    for (int i = 0; i < visibleImages.size(); i++) {
-        auto sprite = visibleImages.at(i);
-        if (sprite && sprite->getBoundingBox().containsPoint(touchPos)) {
-            // ±£´æÑ¡ÔñµÄÍ¼Æ¬ĞÅÏ¢
-            int actualIndex = currentPage * 3 + i;
-            if (actualIndex < allImages.size()) {
-                // ¼ì²éÍæ¼ÒÊÇ·ñÓĞ×ã¹»µÄ×ÊÔ´¹ºÂò
-                int goldCost = g_imageGoldPrices[actualIndex];
-                int crystalCost = g_imageCrystalPrices[actualIndex];
-
-                if (g_playerGold >= goldCost && g_playerCrystal >= crystalCost) {
-                    // ¿Û³ı×ÊÔ´
-                    g_playerGold -= goldCost;
-                    g_playerCrystal -= crystalCost;
-
-                    auto originalSprite = allImages.at(actualIndex);
-
-                    // ±£´æÍ¼Æ¬ĞÅÏ¢µ½È«¾Ö±äÁ¿
-                    g_selectedImageIndex = actualIndex;
-                    g_selectedImageRect = originalSprite->getTextureRect();
-                    g_selectedImageColor = originalSprite->getColor();
-                    g_selectedTexture = originalSprite->getTexture();
-                    g_selectedTextureRect = originalSprite->getTextureRect();
-                    g_selectedImageName = originalSprite->getName();
-
-                    // Ìí¼Ó¹ºÂò³É¹¦¶¯»­
-                    sprite->runAction(Sequence::create(
-                        ScaleTo::create(0.1, sprite->getScale() * 1.2),
-                        ScaleTo::create(0.1, sprite->getScale() * 0.8),
-                        ScaleTo::create(0.1, sprite->getScale()),
-                        CallFunc::create([this]() {
-                            // ¸üĞÂ×ÊÔ´ÏÔÊ¾
-                            updateResourceDisplay();
-
-                            // ·µ»ØÖ÷³¡¾°
-                            auto mainScene = HelloWorld::createScene();
-                            auto transition = TransitionFade::create(0.5, mainScene, Color3B::BLACK);
-                            Director::getInstance()->replaceScene(transition);
-                            }),
-                        nullptr
-                    ));
-                }
-                else {
-                    // ×ÊÔ´²»×ã£¬ÏÔÊ¾ÌáÊ¾
-                    auto notEnoughLabel = Label::createWithTTF("×ÊÔ´²»×ã£¡", "fonts/arial.ttf", 20);
-                    notEnoughLabel->setPosition(Vec2(visibleSize.width / 2.0f, 400.0f));  // ´Ó350µ÷Õûµ½400£¬²¢ĞŞ¸´ÀàĞÍ×ª»»
-                    notEnoughLabel->setColor(Color3B::RED);
-                    this->addChild(notEnoughLabel, 6);
-
-                    notEnoughLabel->runAction(Sequence::create(
-                        DelayTime::create(1.5f),
-                        FadeOut::create(0.5f),
-                        RemoveSelf::create(),
-                        nullptr
-                    ));
-                }
-
-                return;
-            }
-        }
-    }
-}
-
 void BeachScene::updateResourceDisplay()
 {
     auto visibleSize = Director::getInstance()->getVisibleSize();
 
-    // ¸üĞÂ½ğ±ÒÏÔÊ¾
+    // æ›´æ–°é‡‘å¸æ˜¾ç¤º
     auto goldLabel = (Label*)this->getChildByTag(GOLD_LABEL_TAG);
     if (goldLabel) {
         goldLabel->setString(StringUtils::format("%d", g_playerGold));
     }
 
-    // ¸üĞÂ±¦Ê¯ÏÔÊ¾
+    // æ›´æ–°æ°´æ™¶æ˜¾ç¤º
     auto crystalLabel = (Label*)this->getChildByTag(CRYSTAL_LABEL_TAG);
     if (crystalLabel) {
         crystalLabel->setString(StringUtils::format("%d", g_playerCrystal));
@@ -623,7 +591,7 @@ void BeachScene::updateGalleryDisplay()
 {
     auto visibleSize = Director::getInstance()->getVisibleSize();
 
-    // ÒÆ³ıµ±Ç°ÏÔÊ¾µÄËùÓĞÍ¼Æ¬
+    // ç§»é™¤å½“å‰æ˜¾ç¤ºçš„æ‰€æœ‰å›¾ç‰‡
     for (auto& sprite : visibleImages) {
         if (sprite) {
             sprite->removeFromParent();
@@ -631,23 +599,28 @@ void BeachScene::updateGalleryDisplay()
     }
     visibleImages.clear();
 
-    // ¼ÆËã×ÜÒ³Êı
+    // è®¡ç®—æ€»é¡µæ•°
     int totalPages = (int)ceil(allImages.size() / 3.0f);
     currentPageLabel->setString(StringUtils::format("%d/%d", currentPage + 1, totalPages));
 
-    // ¼ÆËãµ±Ç°Ò³µÄÆğÊ¼Ë÷Òı
+    // è®¡ç®—å½“å‰é¡µèµ·å§‹ç´¢å¼•
     int startIndex = currentPage * 3;
 
-    // ÏÔÊ¾µ±Ç°Ò³µÄÍ¼Æ¬£¨×î¶à3ÕÅ£©
-    float itemWidth = visibleSize.width / 3;
+    // æ˜¾ç¤ºå½“å‰é¡µçš„å›¾ç‰‡ï¼ˆæœ€å¤š3å¼ ï¼‰
+    // è®¡ç®—ä¸­é—´60%çš„å®½åº¦
+    float middleWidth = visibleSize.width * 0.6f;
+    // è®¡ç®—èµ·å§‹Xåæ ‡ï¼ˆä»å·¦è¾¹20%å¼€å§‹ï¼‰
+    float startX = visibleSize.width * 0.2f;
+    // è®¡ç®—æ¯ä¸ªå›¾ç‰‡çš„é—´è·
+    float itemSpacing = middleWidth / 3;
 
     for (int i = 0; i < 3; i++) {
         int imageIndex = startIndex + i;
         if (imageIndex < allImages.size()) {
-            // »ñÈ¡Ô­Ê¼¾«Áé
+            // è·å–åŸå§‹ç²¾çµ
             auto originalSprite = allImages.at(imageIndex);
 
-            // ´´½¨¸±±¾
+            // åˆ›å»ºå‰¯æœ¬
             auto spriteCopy = Sprite::create();
             spriteCopy->setTexture(originalSprite->getTexture());
             spriteCopy->setTextureRect(originalSprite->getTextureRect());
@@ -655,13 +628,13 @@ void BeachScene::updateGalleryDisplay()
             spriteCopy->setContentSize(originalSprite->getContentSize());
             spriteCopy->setName(originalSprite->getName());
 
-            // ÉèÖÃÎ»ÖÃ
-            float posX = itemWidth * (i + 0.5f);
-            float posY = visibleSize.height * 0.6f;
+            // è®¾ç½®ä½ç½®
+            float posX = startX + itemSpacing * (i + 0.5f);
+            float posY = visibleSize.height * 0.4f;
 
-            // ÉèÖÃ¾«Áé´óĞ¡
-            float maxSize = 150.0f;  // ´Ó120Ôö¼Óµ½150£¬·Å´óÍ¼Æ¬
-            float scale = 1.2f;  // ´Ó1.0Ôö¼Óµ½1.2£¬ÕûÌå·Å´ó
+            // è®¾ç½®åˆé€‚çš„å¤§å°
+            float maxSize = 150.0f;
+            float scale = 1.2f;
             auto contentSize = spriteCopy->getContentSize();
             if (contentSize.width > maxSize || contentSize.height > maxSize) {
                 scale = maxSize / MAX(contentSize.width, contentSize.height) * 1.2f;
@@ -672,52 +645,173 @@ void BeachScene::updateGalleryDisplay()
             this->addChild(spriteCopy, 6);
             visibleImages.pushBack(spriteCopy);
 
-
-            // Ìí¼ÓÍ¼Æ¬¼Û¸ñÏÔÊ¾
+            // æ·»åŠ å›¾ç‰‡ä»·æ ¼æ˜¾ç¤º
             int goldCost = g_imageGoldPrices[imageIndex];
             int crystalCost = g_imageCrystalPrices[imageIndex];
 
-            // ½ğ±Ò¼Û¸ñ
+            // é‡‘å¸ä»·æ ¼
             auto goldCostIcon = Sprite::create("Gold.png");
             if (goldCostIcon == nullptr) {
                 goldCostIcon = Sprite::create();
-                goldCostIcon->setTextureRect(Rect(0, 0, 25, 25));  // ´Ó20Ôö¼Óµ½25
+                goldCostIcon->setTextureRect(Rect(0, 0, 25, 25));
                 goldCostIcon->setColor(Color3B::YELLOW);
             }
-            goldCostIcon->setScale(0.6f);  // ´Ó0.5Ôö¼Óµ½0.6
-            goldCostIcon->setPosition(Vec2(-30, -contentSize.height * scale / 2 - 50));  // ´Ó-40µ÷Õûµ½-50
+            goldCostIcon->setScale(0.8f);
+            goldCostIcon->setPosition(Vec2(-10, -contentSize.height * scale / 2 ));
             spriteCopy->addChild(goldCostIcon);
 
             auto goldCostLabel = Label::createWithTTF(StringUtils::format("%d", goldCost),
-                "fonts/arial.ttf", 18);  // ´Ó16Ôö¼Óµ½18
-            goldCostLabel->setPosition(Vec2(-5, -contentSize.height * scale / 2 - 50));  // ´Ó-40µ÷Õûµ½-50
+                "fonts/arial.ttf", 25);
+            goldCostLabel->setPosition(Vec2(25, -contentSize.height * scale / 2 ));
             goldCostLabel->setColor(Color3B::YELLOW);
             spriteCopy->addChild(goldCostLabel);
 
-            // ±¦Ê¯¼Û¸ñ
+            // æ°´æ™¶ä»·æ ¼
             auto crystalCostIcon = Sprite::create("Crystal.png");
             if (crystalCostIcon == nullptr) {
                 crystalCostIcon = Sprite::create();
-                crystalCostIcon->setTextureRect(Rect(0, 0, 25, 25));  // ´Ó20Ôö¼Óµ½25
+                crystalCostIcon->setTextureRect(Rect(0, 0, 25, 25));
                 crystalCostIcon->setColor(Color3B::BLUE);
             }
-            crystalCostIcon->setScale(0.6f);  // ´Ó0.5Ôö¼Óµ½0.6
-            crystalCostIcon->setPosition(Vec2(30, -contentSize.height * scale / 2 - 50));  // ´Ó-40µ÷Õûµ½-50
+            crystalCostIcon->setScale(0.8f);
+            crystalCostIcon->setPosition(Vec2(75, -contentSize.height * scale / 2));
             spriteCopy->addChild(crystalCostIcon);
 
             auto crystalCostLabel = Label::createWithTTF(StringUtils::format("%d", crystalCost),
-                "fonts/arial.ttf", 18);  // ´Ó16Ôö¼Óµ½18
-            crystalCostLabel->setPosition(Vec2(55, -contentSize.height * scale / 2 - 50));  // ´Ó-40µ÷Õûµ½-50
+                "fonts/arial.ttf", 18);
+            crystalCostLabel->setPosition(Vec2(105, -contentSize.height * scale / 2));
             crystalCostLabel->setColor(Color3B::BLUE);
             spriteCopy->addChild(crystalCostLabel);
 
-            // Ìí¼ÓÍ¼Æ¬±àºÅ±êÇ©
-            auto label = Label::createWithTTF(StringUtils::format("Í¼Æ¬%d", imageIndex + 1),
-                "fonts/arial.ttf", 22);  // ´Ó20Ôö¼Óµ½22
-            label->setPosition(Vec2(0, -contentSize.height * scale / 2 - 30));  // ´Ó-20µ÷Õûµ½-30
-            label->setColor(Color3B::YELLOW);
-            label->setTag(LABEL_TAG);
-            spriteCopy->addChild(label);
         }
+    }
+}
+
+void BeachScene::onTouchEnded(Touch* touch, Event* event)
+{
+    auto visibleSize = Director::getInstance()->getVisibleSize();
+    auto touchPos = touch->getLocation();
+
+    auto leftArrow = this->getChildByTag(LEFT_ARROW_TAG);
+    auto rightArrow = this->getChildByTag(RIGHT_ARROW_TAG);
+
+    if (leftArrow) leftArrow->setColor(Color3B::GRAY);
+    if (rightArrow) rightArrow->setColor(Color3B::GRAY);
+
+    for (auto& sprite : visibleImages) {
+        sprite->stopAllActions();
+        sprite->runAction(ScaleTo::create(0.1, sprite->getScale()));
+    }
+
+    // æ£€æŸ¥æ˜¯å¦ç‚¹å‡»äº†å·¦ç®­å¤´
+    if (leftArrow && leftArrow->getBoundingBox().containsPoint(touchPos)) {
+        if (currentPage > 0) {
+            currentPage--;
+            updateGalleryDisplay();
+            // æ’­æ”¾ç‚¹å‡»éŸ³æ•ˆ
+            AudioEngine::play2d("click.mp3", false, 0.6f);
+        }
+        return;
+    }
+
+    // æ£€æŸ¥æ˜¯å¦ç‚¹å‡»äº†å³ç®­å¤´
+    if (rightArrow && rightArrow->getBoundingBox().containsPoint(touchPos)) {
+        int totalPages = (int)ceil(allImages.size() / 3.0f);
+        if (currentPage < totalPages - 1) {
+            currentPage++;
+            updateGalleryDisplay();
+            // æ’­æ”¾ç‚¹å‡»éŸ³æ•ˆ
+            AudioEngine::play2d("click.mp3", false, 0.6f);
+        }
+        return;
+    }
+
+    // æ£€æŸ¥æ˜¯å¦ç‚¹å‡»äº†å›¾ç‰‡
+    for (int i = 0; i < visibleImages.size(); i++) {
+        auto sprite = visibleImages.at(i);
+        if (sprite && sprite->getBoundingBox().containsPoint(touchPos)) {
+            int actualIndex = currentPage * 3 + i;
+            if (actualIndex < allImages.size()) {
+                int goldCost = g_imageGoldPrices[actualIndex];
+                int crystalCost = g_imageCrystalPrices[actualIndex];
+
+                if (g_playerGold >= goldCost && g_playerCrystal >= crystalCost) {
+                    g_playerGold -= goldCost;
+                    g_playerCrystal -= crystalCost;
+
+                    auto originalSprite = allImages.at(actualIndex);
+
+                    g_selectedImageIndex = actualIndex;
+                    g_selectedImageRect = originalSprite->getTextureRect();
+                    g_selectedImageColor = originalSprite->getColor();
+                    g_selectedTexture = originalSprite->getTexture();
+                    g_selectedTextureRect = originalSprite->getTextureRect();
+                    g_selectedImageName = originalSprite->getName();
+
+                    // æ’­æ”¾è´­ä¹°éŸ³æ•ˆ
+                    AudioEngine::play2d("gold.mp3", false, 0.7f);
+
+                    sprite->runAction(Sequence::create(
+                        ScaleTo::create(0.1, sprite->getScale() * 1.2),
+                        ScaleTo::create(0.1, sprite->getScale() * 0.8),
+                        ScaleTo::create(0.1, sprite->getScale()),
+                        CallFunc::create([this]() {
+                            updateResourceDisplay();
+                            auto mainScene = HelloWorld::createScene();
+                            auto transition = TransitionFade::create(0.5, mainScene, Color3B::WHITE);
+                            Director::getInstance()->replaceScene(transition);
+                            }),
+                        nullptr
+                    ));
+                }
+                else {
+                    // æ’­æ”¾ç‚¹å‡»éŸ³æ•ˆï¼ˆèµ„æºä¸è¶³æ—¶ï¼‰
+                    AudioEngine::play2d("click.mp3", false, 0.8f);
+
+                    auto notEnoughLabel = Label::createWithTTF("èµ„æºä¸è¶³ï¼", "fonts/arial.ttf", 20);
+                    notEnoughLabel->setPosition(Vec2(visibleSize.width / 2.0f, 400.0f));
+                    notEnoughLabel->setColor(Color3B::RED);
+                    this->addChild(notEnoughLabel, 6);
+
+                    notEnoughLabel->runAction(Sequence::create(
+                        DelayTime::create(1.5f),
+                        FadeOut::create(0.5f),
+                        RemoveSelf::create(),
+                        nullptr
+                    ));
+                }
+                return;
+            }
+        }
+    }
+}
+
+// BeachScene éŸ³é¢‘æ§åˆ¶æ–¹æ³•
+void BeachScene::playShopBackgroundMusic()
+{
+    if (s_shopBackgroundAudioID == AudioEngine::INVALID_AUDIO_ID) {
+        // æ’­æ”¾å•†åº—èƒŒæ™¯éŸ³ä¹ï¼Œtrueè¡¨ç¤ºå¾ªç¯æ’­æ”¾
+        s_shopBackgroundAudioID = AudioEngine::play2d("shop.mp3", true, 0.5f);
+    }
+    else {
+        // è·å–éŸ³é¢‘çŠ¶æ€
+        auto state = AudioEngine::getState(s_shopBackgroundAudioID);
+
+        if (state == AudioEngine::AudioState::ERROR) {
+            // å¦‚æœæ˜¯é”™è¯¯çŠ¶æ€ï¼Œé‡æ–°æ’­æ”¾
+            AudioEngine::stop(s_shopBackgroundAudioID);
+            s_shopBackgroundAudioID = AudioEngine::play2d("shop.mp3", true, 0.5f);
+        }
+        else if (state == AudioEngine::AudioState::PAUSED) {
+            AudioEngine::resume(s_shopBackgroundAudioID);
+        }
+    }
+}
+
+void BeachScene::stopShopBackgroundMusic()
+{
+    if (s_shopBackgroundAudioID != AudioEngine::INVALID_AUDIO_ID) {
+        AudioEngine::stop(s_shopBackgroundAudioID);
+        s_shopBackgroundAudioID = AudioEngine::INVALID_AUDIO_ID;
     }
 }
