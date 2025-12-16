@@ -18,7 +18,7 @@ public:
     bool isSelected() const { return _isSelected; }
     cocos2d::Sprite* getTurf() const { return _turf; }
     cocos2d::Sprite* getBuildingSprite() const { return _buildingSprite; }
-
+    void setBuildingSize(int size);
     void setBuildingScale(float scale);
     void setTurfScale(float scale);
 
@@ -26,9 +26,11 @@ public:
 
     bool isCenterInsideMap(Node* mapNode) const;
     void drawDebugMapRange(Node* mapNode);
-    void setBuildingTileSize(int tileWidthCount, int tileHeightCount);
+    void setBuildingTileSize();
     bool isClickingInTurf(Node* mapNode, cocos2d::EventMouse* e);
 
+    void setTilePosition(Node* mapNode, float tileX, float tileY);
+    
 
     // ========== 标签相关方法 ==========
     void setBuildingName(const std::string& name);    // 设置建筑名称
@@ -41,16 +43,27 @@ public:
     void setLevel(int level);                         // 设置等级
     int getLevel() const { return _level; }
 
-    // ========== 新增：选择状态控制 ==========
+    // ========== 选择状态控制 ==========
     void setSelected(bool selected);
 
-    // ========== 新增：操作栏相关方法 ==========
+    // ========== 操作栏相关方法 ==========
     void showActionBar();          // 显示操作栏
     static void hideActionBar();   // 隐藏操作栏（静态）
 
     // ========== 按钮回调方法（供子类覆盖）==========
     virtual void onInfoButtonClicked();
     virtual void onUpgradeButtonClicked();
+
+  
+
+    // 升级一次（核心方法）
+    void upgrade();
+
+    // 设置升级时的图片
+    void setUpgradeSprite(int level, const std::string& spriteFile);
+
+    void Building::playUpgradeEffect();
+
 
 protected:
     Vec2 _dragStartPos;
@@ -64,8 +77,10 @@ protected:
 
     cocos2d::Sprite* _turf;
     cocos2d::Sprite* _buildingSprite;
+   
     bool _isSelected;
     bool _isDragging;
+   
     cocos2d::Vec2 _lastMousePos;
     float _buildingScaleRatio;
 
@@ -79,7 +94,7 @@ protected:
     void setupBuildingOnTurf();
 
     int _level;
-    // ========== 新增：标签相关属性 ==========
+    // ========== 标签相关属性 ==========
     cocos2d::Label* _infoLabel;      // 信息标签
     std::string _buildingName;       // 建筑名称
 
@@ -87,9 +102,11 @@ protected:
     virtual void createInfoLabel();  // 创建标签
     virtual void showInfoLabel();    // 显示标签
     virtual void hideInfoLabel();    // 隐藏标签
-    
 
-    
+   
+
+    std::unordered_map<int, std::string> _upgradeSprites;  // 等级->图片映射
+    void changeBuildingSprite(const std::string& newSpriteFile);  // 更换建筑精灵
 };
 
 #endif // __BUILDING_H__

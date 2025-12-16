@@ -1,17 +1,15 @@
 #include "Building.h"
 #include"BuildingActionBar.h"
+#include"MapTools.h"
+#include"Camp.h"
 USING_NS_CC;
-const float TILE_W = 65.55f;    // tile 宽
-const float TILE_H = 49.1625f;  // tile 高
-const int HALF = 21;            // 当前地图 tile 半径
 const float LABEL_OFFSET_Y = 20.0f;  // 标签在建筑上方的偏移量
 const float LABEL_FONT_SIZE = 45.0f; // 字体大小
+const int MAX_LEVEL = 5;
 // ========== 新增：按钮相关常量 ==========
 
 
-// 地图图片偏移矫正
-const float offsetX = 51.0f; 
-const float offsetY = 156.0f; 
+
 Building::Building() :
     _turf(nullptr),
     _buildingSprite(nullptr),
@@ -64,7 +62,7 @@ bool Building::init(const std::string& buildingFile,
     _turf->setPosition(Vec2::ZERO);
     _turf->setAnchorPoint(Vec2(0.5f, 0.5f));
 
-    setBuildingTileSize(4, 4);
+    setBuildingTileSize();
 
     if (!buildingFile.empty()) {
         _buildingSprite = Sprite::create(buildingFile);
@@ -103,7 +101,7 @@ void Building::setupBuildingOnTurf()
     float scale = MIN(scaleX, scaleY);
 
     _buildingSprite->setScale(scale);
-    _buildingSprite->setPosition(Vec2::ZERO);
+    _buildingSprite->setPosition(Vec2(0,10));
     _buildingSprite->setAnchorPoint(Vec2(0.5f, 0.5f));
 
     
@@ -125,12 +123,12 @@ void Building::setTurfScale(float scale)
     }
 }
 
-void Building::setBuildingTileSize(int tileWidthCount, int tileHeightCount)
+void Building::setBuildingTileSize()
 {
     if (!_turf) return;
 
-    float targetWidth = TILE_W * tileWidthCount;
-    float targetHeight = TILE_H * tileHeightCount;
+    float targetWidth = TILE_W * _size;
+    float targetHeight = TILE_H * _size;
 
     Size buildingSize = _turf->getContentSize();
 
@@ -145,61 +143,43 @@ void Building::setBuildingTileSize(int tileWidthCount, int tileHeightCount)
 
 void Building::onBuildingMouseDown(Event* event)
 {
-    if (_isSelected) {
-        
-        EventMouse* e = static_cast<EventMouse*>(event);
-        if (e->getMouseButton() == EventMouse::MouseButton::BUTTON_LEFT &&
-            isClickingInTurf(this->_parent, e))
-        {
-            _isDragging = true;
-            _lastMousePos = Vec2(e->getCursorX(), e->getCursorY());
-            _dragStartPos = this->getPosition();
-            
-            event->stopPropagation();
-        }
-    }
-    else {
-        _isSelected = true;
-        EventMouse* e = static_cast<EventMouse*>(event);
-        if (e->getMouseButton() == EventMouse::MouseButton::BUTTON_LEFT &&
-            isClickingInTurf(this->_parent, e))
-        {
-            if (_turf) _turf->setColor(Color3B(180, 180, 180));
-            if (_buildingSprite) _buildingSprite->setColor(Color3B(220, 220, 220));
-            this->runAction(ScaleTo::create(0.1f, this->getScale() * 1.05f));
+    auto e = static_cast<EventMouse*>(event);
+    if (e->getMouseButton() != EventMouse::MouseButton::BUTTON_LEFT)
+        return;
 
-            showInfoLabel();
-            showActionBar();
-            event->stopPropagation();
-        }
+    if (!isClickingInTurf(this->_parent, e))
+        return;
+
+    // 通知 Camp：我要被选中了
+    auto camp = dynamic_cast<Camp*>(Director::getInstance()->getRunningScene());
+    if (camp) {
+        camp->selectBuilding(this);
     }
+
+    // 开始拖拽
+    _isDragging = true;
+    _lastMousePos = Vec2(e->getCursorX(), e->getCursorY());
+    _dragStartPos = this->getPosition();
+
+    event->stopPropagation(); // 非常重要：阻止地图接管
 }
+
 
 
 void Building::onBuildingMouseUp(Event* event)
 {
-    if (_isDragging) {
-        _isSelected = false;
-        _isDragging = false;
+    if (!_isDragging) return;
 
-        if (_turf) _turf->setColor(Color3B::WHITE);
-        if (_buildingSprite) _buildingSprite->setColor(Color3B::WHITE);
-        Node* mapNode = this->getParent();
-        
-        if (mapNode) {
-            // 假设建筑占 4x4 tiles
-            snapToTile(mapNode, 4, 4);
-        }
+    _isDragging = false;
 
-        this->runAction(ScaleTo::create(0.1f, this->getScale() / 1.05f));
-       
-         hideInfoLabel();
-         hideActionBar();
-        event->stopPropagation();
-        return;
+    Node* mapNode = this->getParent();
+    if (mapNode) {
+        snapToTile(mapNode, _size, _size);
     }
-    
+
+    event->stopPropagation();
 }
+
 
 void Building::onBuildingMouseMove(Event* event)
 {
@@ -219,7 +199,23 @@ void Building::onBuildingMouseMove(Event* event)
     event->stopPropagation();
 }
 
+void Building::setTilePosition(Node* mapNode, float tileX, float tileY)
+{
+    if (!mapNode) return;
 
+    Vec2 pos = tileToMapLocal(mapNode, tileX, tileY);
+    this->setPosition(pos);
+}
+
+void Building::setBuildingSize(int size)
+{
+    if (size <= 0) return;
+
+    _size = size;
+
+    
+    setBuildingTileSize();
+}
 
 void Building::drawDebugMapRange(Node* mapNode)
 {
@@ -283,17 +279,11 @@ void Building::snapToTile(Node* mapNode, int buildingTileW, int buildingTileH)
     Vec2 worldCenter = this->convertToWorldSpace(Vec2::ZERO);
     Vec2 mapLocal = mapNode->convertToNodeSpace(worldCenter);
 
-    Size mapSize = mapNode->getContentSize();
-    Vec2 mapCenter(mapSize.width / 2 + offsetX, mapSize.height / 2 + offsetY);
-    Vec2 centered = mapLocal - mapCenter;
-
-    // 等距投影 → tile 坐标
-    float tileX = (centered.x / (TILE_W / 2) + centered.y / (TILE_H / 2)) * 0.5f;
-    float tileY = (centered.y / (TILE_H / 2) - centered.x / (TILE_W / 2)) * 0.5f;
+    Vec2 tile = mapLocalToTile(mapNode, mapLocal);
 
     // 对齐到最近 tile 网格（根据建筑占用宽高）
-    float snappedTileX = round((tileX / buildingTileW) * buildingTileW );
-    float snappedTileY = round((tileY / buildingTileH) * buildingTileH );
+    float snappedTileX = round((tile.x / buildingTileW) * buildingTileW );
+    float snappedTileY = round((tile.y / buildingTileH) * buildingTileH );
 
     snappedTileX += deltaX;
     snappedTileY += deltaY;
@@ -303,15 +293,7 @@ void Building::snapToTile(Node* mapNode, int buildingTileW, int buildingTileH)
         return;
     }
 
-    // tile → 地图本地坐标
-    Vec2 snappedCentered;
-    snappedCentered.x = (snappedTileX - snappedTileY) * (TILE_W / 2.0f);
-    snappedCentered.y = (snappedTileX + snappedTileY) * (TILE_H / 2.0f);
-
-    Vec2 snappedPos = mapCenter + snappedCentered;
-
-    // 更新建筑位置
-    this->setPosition(snappedPos);
+    setTilePosition(mapNode, snappedTileX, snappedTileY);
 }
 
 
@@ -401,16 +383,20 @@ void Building::setBuildingName(const std::string& name)
 void Building::setLevel(int level)
 {
     if (level < 1) level = 1;
-    if (level > 10) level = 10; // 假设最大10级
+    if (level > MAX_LEVEL) level = MAX_LEVEL;
 
     if (_level != level) {
         _level = level;
-        if (_isSelected && _infoLabel) {
-            updateInfoLabel(); // 如果当前已选中，立即更新标签
+
+        // 如果有对应等级的图片，就更换
+        auto it = _upgradeSprites.find(level);
+        if (it != _upgradeSprites.end() && !it->second.empty()) {
+            changeBuildingSprite(it->second);
         }
+
+        updateInfoLabel();
     }
 }
-
 // 控制标签显示
 void Building::setShowInfoLabel(bool show)
 {
@@ -511,18 +497,25 @@ void Building::updateInfoLabel()
 void Building::setSelected(bool selected)
 {
     _isSelected = selected;
-    if (!selected) {
-        // 取消选择时恢复颜色
+
+    if (selected) {
+        if (_turf) _turf->setColor(Color3B(180, 180, 180));
+        if (_buildingSprite) _buildingSprite->setColor(Color3B(220, 220, 220));
+
+        this->runAction(ScaleTo::create(0.1f, this->getScale() * 1.05f));
+        showInfoLabel();
+        showActionBar();
+    }
+    else {
         if (_turf) _turf->setColor(Color3B::WHITE);
         if (_buildingSprite) _buildingSprite->setColor(Color3B::WHITE);
 
-        // 恢复缩放
         this->runAction(ScaleTo::create(0.1f, this->getScale() / 1.05f));
-
-        // 隐藏标签
         hideInfoLabel();
+        hideActionBar();
     }
 }
+
 
 // 显示操作栏 
 void Building::showActionBar()
@@ -555,19 +548,98 @@ void Building::onInfoButtonClicked()
     CCLOG("信息按钮: %s", _buildingName.c_str());
 }
 
+
 void Building::onUpgradeButtonClicked()
 {
     CCLOG("升级按钮: %s Lv.%d", _buildingName.c_str(), _level);
+    upgrade();  // 直接调用升级
+}
 
-    if (_level < 10) {
-        _level++;
+// ========== 设置升级图片 ==========
+void Building::setUpgradeSprite(int level, const std::string& spriteFile)
+{
+    if (level < 1 || level > MAX_LEVEL) return;
+    _upgradeSprites[level] = spriteFile;
+}
+
+void Building::upgrade()
+{
+    if (_level >= MAX_LEVEL) {
+        CCLOG("建筑 %s 已达到最大等级 %d", _buildingName.c_str(), MAX_LEVEL);
+        return;
+    }
+
+    int oldLevel = _level;
+    _level++;
+
+    CCLOG("建筑 %s 从 %d 级升级到 %d 级",
+        _buildingName.c_str(), oldLevel, _level);
+
+    // 更换图片
+    auto it = _upgradeSprites.find(_level);
+    if (it != _upgradeSprites.end() && !it->second.empty()) {
+        changeBuildingSprite(it->second);
+    }
+
+    // 更新标签
+    if (_isSelected && _infoLabel) {
         updateInfoLabel();
+    }
 
-        // 升级动画
-        auto scaleUp = ScaleTo::create(0.1f, this->getScale() * 1.1f);
-        auto scaleDown = ScaleTo::create(0.1f, this->getScale());
-        this->runAction(Sequence::create(scaleUp, scaleDown, nullptr));
+    // 播放升级特效
+    playUpgradeEffect();
+}
 
-        CCLOG("%s 升级到 Lv.%d", _buildingName.c_str(), _level);
+// ========== 新增：更换建筑精灵（保持草皮不变）==========
+void Building::changeBuildingSprite(const std::string& newSpriteFile)
+{
+    if (!_turf) return;  // 必须有草皮
+
+    // 移除旧的建筑精灵
+    if (_buildingSprite) {
+        this->removeChild(_buildingSprite);
+        _buildingSprite = nullptr;
+    }
+
+    // 创建新的建筑精灵
+    _buildingSprite = Sprite::create(newSpriteFile);
+    if (!_buildingSprite) {
+        CCLOG("错误：无法加载升级图片 %s", newSpriteFile.c_str());
+        return;
+    }
+
+    // 添加到草皮上（继承你的原有结构）
+    this->addChild(_buildingSprite, 1);  // z-order: 1，在草皮上面
+
+    // 保持原有设置：位置和锚点
+    _buildingSprite->setPosition(Vec2::ZERO);
+    _buildingSprite->setAnchorPoint(Vec2(0.5f, 0.5f));
+
+    // 调用原有的设置方法，保持与草皮的适配
+    setupBuildingOnTurf();
+
+    // 如果当前是选中状态，保持选中颜色
+    if (_isSelected) {
+        _buildingSprite->setColor(Color3B(220, 220, 220));
+    }
+
+    CCLOG("建筑 %s 更换为图片: %s", _buildingName.c_str(), newSpriteFile.c_str());
+}
+
+// ========== 升级特效 ==========
+void Building::playUpgradeEffect()
+{
+    // 简单特效：缩放动画
+    auto scaleUp = ScaleTo::create(0.15f, this->getScale() * 1.15f);
+    auto scaleDown = ScaleTo::create(0.15f, this->getScale());
+    this->runAction(Sequence::create(scaleUp, scaleDown, nullptr));
+
+    // 金色闪烁
+    if (_buildingSprite) {
+        auto tintToGold = TintTo::create(0.1f, Color3B(255, 215, 0));
+        auto tintBack = TintTo::create(0.1f, Color3B::WHITE);
+        _buildingSprite->runAction(Sequence::create(tintToGold, tintBack, nullptr));
     }
 }
+
+

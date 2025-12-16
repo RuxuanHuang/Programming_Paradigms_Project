@@ -69,19 +69,19 @@ void BuildingActionBar::createButtons()
     this->addChild(_buttonContainer);
 
     // 1. 信息按钮
-    _infoButton = Button::create("Information.png", "", "");
+    _infoButton = Button::create("InformationButtom.png", "", "");
     if (_infoButton) {
         // 移除所有额外设置，只保留默认图片
         _infoButton->setScale(0.12f);
-        _infoButton->setPosition(Vec2(200, 0));
+        _infoButton->setPosition(Vec2(-200, 0));
         _buttonContainer->addChild(_infoButton);
     }
 
     // 2. 升级按钮
-    _upgradeButton = Button::create("Upgrade.png", "", "");
+    _upgradeButton = Button::create("UpgradeButtom.png", "", "");
     if (_upgradeButton) {
         _upgradeButton->setScale(0.12f);
-        _upgradeButton->setPosition(Vec2(-200, 0)); 
+        _upgradeButton->setPosition(Vec2(+200, 0)); 
         _buttonContainer->addChild(_upgradeButton);
     }
 
