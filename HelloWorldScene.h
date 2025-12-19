@@ -3,7 +3,7 @@
 
 #include "cocos2d.h"
 #include "audio/include/AudioEngine.h"
-
+#include "resources.h"
 USING_NS_CC;
 
 // 定义标签常量
@@ -69,7 +69,7 @@ private:
     cocos2d::Label* currentPageLabel = nullptr;
     int currentPage = 0;
     int touchedImageIndex = -1;
-
+    ResourceManager* m_resourceManager;
     static int s_shopBackgroundAudioID;  // 商店场景背景音乐的音频ID
 };
 
