@@ -3,10 +3,12 @@
 USING_NS_CC;
 
 BuildersHut* BuildersHut::create(const std::string& buildingFile,
+    bool isHownTown,
     const std::string& turfFile,
     float buildingScale)
 {
     BuildersHut* ret = new (std::nothrow) BuildersHut();
+    ret->setIsHownTown(isHownTown);
     if (ret && ret->init(buildingFile, turfFile, buildingScale))
     {
         ret->autorelease();
@@ -30,9 +32,9 @@ bool BuildersHut::init(const std::string& buildingFile,
 
     // 2. 设置大本营基本属性
     this->setBuildingName("Builders Hut");
-    this->setLevel(1);
     this->setBuildingSize(2);
     this->setBuildingScale(0.9f);
+    this->setMaxLevel(1);
 
    
 

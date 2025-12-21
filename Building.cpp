@@ -5,7 +5,7 @@
 USING_NS_CC;
 const float LABEL_OFFSET_Y = 20.0f;  // 标签在建筑上方的偏移量
 const float LABEL_FONT_SIZE = 45.0f; // 字体大小
-const int MAX_LEVEL = 5;
+
 // ========== 新增：按钮相关常量 ==========
 
 
@@ -19,19 +19,24 @@ Building::Building() :
     _debugDrawNode(nullptr),
     _diamondWidthRatio(0.7f),
     _diamondHeightRatio(0.7f),
-    _size(4),
-    _level(1),
+    _size(3),
     _infoLabel(nullptr),      // 初始化标签
-    _buildingName("Building") 
+    _buildingName("Building"),
+    _level(1),
+    _HP(0),
+    _cost(0),
+    _maxLevel(3)
    
 {
 }
 
 Building* Building::create(const std::string& buildingFile,
+    bool isHownTown,
     const std::string turfFile,
     float buildingScale)
 {
     Building* ret = new (std::nothrow) Building();
+    ret->setIsHownTown(isHownTown);
     if (ret && ret->init(buildingFile, turfFile, buildingScale))
     {
         ret->autorelease();
@@ -50,7 +55,6 @@ bool Building::init(const std::string& buildingFile,
     }
 
     _buildingScaleRatio = buildingScale;
-
     std::string actualTurfFile = turfFile.empty() ? "grass.png" : turfFile;
     _turf = Sprite::create(actualTurfFile);
 
@@ -81,6 +85,9 @@ bool Building::init(const std::string& buildingFile,
 
     _eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);
 
+    
+
+    
     return true;
 }
 
@@ -361,7 +368,7 @@ bool Building::isClickingInTurf(Node* mapNode, cocos2d::EventMouse* e)
     float tileX2 = (centered2.x / (TILE_W / 2) + centered2.y / (TILE_H / 2)) * 0.5f;
     float tileY2 = (centered2.y / (TILE_H / 2) - centered2.x / (TILE_W / 2)) * 0.5f;
 
-	if (abs(tileX - tileX2) < 2.0f && abs(tileY - tileY2) < 2.0f) {
+	if (abs(tileX - tileX2) < (_size/2.0f) && abs(tileY - tileY2) < (_size / 2.0f)) {
 		return true;
 	}
     else {
@@ -383,17 +390,16 @@ void Building::setBuildingName(const std::string& name)
 void Building::setLevel(int level)
 {
     if (level < 1) level = 1;
-    if (level > MAX_LEVEL) level = MAX_LEVEL;
+    if (level > _maxLevel) level = _maxLevel;
 
     if (_level != level) {
         _level = level;
 
         // 如果有对应等级的图片，就更换
-        auto it = _upgradeSprites.find(level);
-        if (it != _upgradeSprites.end() && !it->second.empty()) {
-            changeBuildingSprite(it->second);
+        auto it = _upgradeSprites.find(_level);
+        if (it != _upgradeSprites.end() && !it->second.spriteFile.empty()) {
+            changeBuildingSprite(it->second.spriteFile);
         }
-
         updateInfoLabel();
     }
 }
@@ -504,7 +510,20 @@ void Building::setSelected(bool selected)
 
         this->runAction(ScaleTo::create(0.1f, this->getScale() * 1.05f));
         showInfoLabel();
-        showActionBar();
+        if (_actionBar == nullptr) {
+            _actionBar = BuildingActionBar::create();
+            _actionBar->setVisible(false);
+            auto scene = Director::getInstance()->getRunningScene();
+            scene->addChild(_actionBar, 1000);
+        }
+        // 设置回调（使用lambda捕获this）
+        _actionBar->setCallbacks(
+            [this]() { this->onInfoButtonClicked(); },
+            [this]() { this->onUpgradeButtonClicked(); }
+        );
+
+        // 显示操作栏
+		_actionBar->showForBuilding(this);
     }
     else {
         if (_turf) _turf->setColor(Color3B::WHITE);
@@ -512,35 +531,11 @@ void Building::setSelected(bool selected)
 
         this->runAction(ScaleTo::create(0.1f, this->getScale() / 1.05f));
         hideInfoLabel();
-        hideActionBar();
+        _actionBar->hide();
     }
 }
 
 
-// 显示操作栏 
-void Building::showActionBar()
-{
-    auto actionBar = BuildingActionBar::getInstance();
-    if (actionBar) {
-        // 设置回调（使用lambda捕获this）
-        actionBar->setCallbacks(
-            [this]() { this->onInfoButtonClicked(); },
-            [this]() { this->onUpgradeButtonClicked(); }
-        );
-
-        // 显示操作栏
-        actionBar->showForBuilding(this);
-    }
-}
-
-//隐藏操作栏（静态方法）
-void Building::hideActionBar()
-{
-    auto actionBar = BuildingActionBar::getInstance();
-    if (actionBar) {
-        actionBar->hide();
-    }
-}
 
 // 按钮回调
 void Building::onInfoButtonClicked()
@@ -558,14 +553,14 @@ void Building::onUpgradeButtonClicked()
 // ========== 设置升级图片 ==========
 void Building::setUpgradeSprite(int level, const std::string& spriteFile)
 {
-    if (level < 1 || level > MAX_LEVEL) return;
-    _upgradeSprites[level] = spriteFile;
+    if (level < 1 || level > _maxLevel) return;
+    _upgradeSprites[level].spriteFile = spriteFile;
 }
 
 void Building::upgrade()
 {
-    if (_level >= MAX_LEVEL) {
-        CCLOG("建筑 %s 已达到最大等级 %d", _buildingName.c_str(), MAX_LEVEL);
+    if (_level >= _maxLevel) {
+        
         return;
     }
 
@@ -577,9 +572,12 @@ void Building::upgrade()
 
     // 更换图片
     auto it = _upgradeSprites.find(_level);
-    if (it != _upgradeSprites.end() && !it->second.empty()) {
-        changeBuildingSprite(it->second);
+    if (it != _upgradeSprites.end() && !it->second.spriteFile. empty()) {
+        changeBuildingSprite(it->second.spriteFile);
     }
+  
+    _HP = _upgradeSprites[_level ]._hp;
+	_cost = _upgradeSprites[_level ]._upgradeCost;
 
     // 更新标签
     if (_isSelected && _infoLabel) {
@@ -629,11 +627,6 @@ void Building::changeBuildingSprite(const std::string& newSpriteFile)
 // ========== 升级特效 ==========
 void Building::playUpgradeEffect()
 {
-    // 简单特效：缩放动画
-    auto scaleUp = ScaleTo::create(0.15f, this->getScale() * 1.15f);
-    auto scaleDown = ScaleTo::create(0.15f, this->getScale());
-    this->runAction(Sequence::create(scaleUp, scaleDown, nullptr));
-
     // 金色闪烁
     if (_buildingSprite) {
         auto tintToGold = TintTo::create(0.1f, Color3B(255, 215, 0));

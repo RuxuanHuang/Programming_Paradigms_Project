@@ -8,13 +8,14 @@ class BuildersHut : public Building
 public:
     // 创建方法
     static BuildersHut* create(const std::string& buildingFile = "Builders_Hut1.png",
+        bool isHownTown = true,
         const std::string& turfFile = "grass.png",
-        float buildingScale = 0.7f);
+        float buildingScale = 0.8f);
 
     BuildersHut() = default;
     ~BuildersHut() = default;
 
-    ;
+    
 
 protected:
     virtual bool init(const std::string& buildingFile,

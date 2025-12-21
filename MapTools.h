@@ -2,12 +2,20 @@
 #include "ui/CocosGUI.h"
 USING_NS_CC;
 
-const float TILE_W = 65.55f;    // tile 宽
-const float TILE_H = 49.1625f;  // tile 高
+static float TILE_W = 65.55f;    // tile 宽
+static float TILE_H = 49.1625f;  // tile 高
+
+static float BATTLE_MAP_TILE_W = 65.55f;    // tile 宽
+static float BATTLE_MAP_TILE_H = 49.1625f;  // tile 高
+
 const int HALF = 21;            // 当前地图 tile 半径
 // 地图图片偏移矫正
-const float offsetX = 51.0f;
-const float offsetY = 156.0f;
+static float offsetX = 51.0f;
+static float offsetY = 156.0f;
+
+static float BATTLE_MAP_OFFSETX = 65.55f;    // tile 宽
+static float BATTLE_MAP_OFFSETY = 49.1625f;  // tile 高
+
 // tile → map local
 static Vec2 tileToMapLocal(Node* mapNode, float tileX, float tileY)
 {
