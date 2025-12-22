@@ -1,4 +1,4 @@
-﻿#include "people.h"
+#include "people.h"
 
 // 静态成员初始化
 PopulationManager* PopulationManager::s_instance = nullptr;
@@ -26,11 +26,11 @@ PopulationManager::PopulationManager()
     m_mage = new Character(CharacterType::MAGE, "巨人", "3.png");
     m_healer = new Character(CharacterType::HEALER, "哥布林", "4.png");
 
-    // 初始化每种人物的消耗（写死的消耗量）
-    m_characterCosts[CharacterType::WARRIOR] = 1;   // 野蛮人消耗1人口
-    m_characterCosts[CharacterType::ARCHER] = 2;    // 弓箭手消耗2人口
-    m_characterCosts[CharacterType::MAGE] = 5;      // 巨人消耗5人口
-    m_characterCosts[CharacterType::HEALER] = 1;    // 哥布林消耗1人口
+    // 初始化每种人物的消耗
+    m_characterCosts[CharacterType::WARRIOR] = 1;
+    m_characterCosts[CharacterType::ARCHER] = 2;
+    m_characterCosts[CharacterType::MAGE] = 5;
+    m_characterCosts[CharacterType::HEALER] = 1;
 
     CCLOG("PopulationManager created");
 }
@@ -68,25 +68,13 @@ void PopulationManager::initialize(int totalPopulation)
     CCLOG("PopulationManager initialized with %d total population", totalPopulation);
 }
 
-// 设置每种人物的消耗
-void PopulationManager::setCharacterCost(CharacterType type, int cost)
-{
-    if (cost < 1) {
-        CCLOG("Warning: Character cost cannot be less than 1, setting to 1");
-        cost = 1;
-    }
-    m_characterCosts[type] = cost;
-    CCLOG("%s cost set to %d population per unit",
-        getCharacter(type)->getName().c_str(), cost);
-}
-
 int PopulationManager::getCharacterCost(CharacterType type) const
 {
     auto it = m_characterCosts.find(type);
     if (it != m_characterCosts.end()) {
         return it->second;
     }
-    return 1;  // 默认值
+    return 1;
 }
 
 int PopulationManager::getAssignedPopulation() const
@@ -188,6 +176,26 @@ bool PopulationManager::isValidAssignment(CharacterType type, int count) const
     return true;
 }
 
+bool PopulationManager::isValidUnassignment(CharacterType type, int count) const
+{
+    if (count <= 0) {
+        return false;
+    }
+
+    Character* character = getCharacter(type);
+    if (!character) {
+        return false;
+    }
+
+    if (character->getCount() < count) {
+        CCLOG("Error: Not enough %s to unassign. Need: %d, Have: %d",
+            character->getName().c_str(), count, character->getCount());
+        return false;
+    }
+
+    return true;
+}
+
 std::vector<Character*> PopulationManager::getAllCharacters() const
 {
     return { m_warrior, m_archer, m_mage, m_healer };
@@ -232,8 +240,12 @@ Scene* PopulationScene::createScene(int totalPopulation)
 {
     auto scene = Scene::create();
     auto layer = PopulationScene::create();
-    layer->setTotalPopulation(totalPopulation);
-    scene->addChild(layer);
+    if (layer) {
+        layer->setTotalPopulation(totalPopulation);
+        auto populationMgr = PopulationManager::getInstance();
+        populationMgr->initialize(totalPopulation);
+        scene->addChild(layer);
+    }
     return scene;
 }
 
@@ -245,11 +257,29 @@ bool PopulationScene::init()
     }
 
     m_populationMgr = PopulationManager::getInstance();
-    m_populationMgr->initialize(m_totalPopulation);
-
+    if (m_totalPopulation > 0) {
+        m_populationMgr->initialize(m_totalPopulation);
+    }
     setupUI();
 
     return true;
+}
+
+void PopulationScene::onEnter()
+{
+    Scene::onEnter();
+
+    if (m_totalPopulation > 0) {
+        m_populationMgr->initialize(m_totalPopulation);
+        updateUI();
+    }
+    else {
+        m_populationMgr->loadAssignment();
+        m_totalPopulation = m_populationMgr->getTotalPopulation();
+        updateUI();
+    }
+
+    CCLOG("PopulationScene onEnter, total population: %d", m_totalPopulation);
 }
 
 void PopulationScene::setupUI()
@@ -262,20 +292,21 @@ void PopulationScene::setupUI()
     this->addChild(background, -1);
 
     // 标题
-    auto titleLabel = Label::createWithTTF("人口分配系统", "fonts/arial.ttf", 36);
+    auto titleLabel = Label::createWithTTF("POPULAR SYSTEM", "fonts/arial.ttf", 36);
     titleLabel->setPosition(Vec2(visibleSize.width / 2, visibleSize.height - 50));
     titleLabel->setColor(Color3B::YELLOW);
     this->addChild(titleLabel, 1);
 
     // 总人口显示
-    m_totalLabel = Label::createWithTTF(StringUtils::format("总人口: %d", m_totalPopulation),
+    int currentTotal = m_populationMgr->getTotalPopulation();
+    m_totalLabel = Label::createWithTTF(StringUtils::format("TOTLE: %d", currentTotal),
         "fonts/arial.ttf", 28);
     m_totalLabel->setPosition(Vec2(visibleSize.width / 2, visibleSize.height - 120));
     m_totalLabel->setColor(Color3B::GREEN);
     this->addChild(m_totalLabel, 1);
 
     // 可用人口显示
-    m_availableLabel = Label::createWithTTF("可用人口: 0", "fonts/arial.ttf", 24);
+    m_availableLabel = Label::createWithTTF("TOTLE: 0", "fonts/arial.ttf", 24);
     m_availableLabel->setPosition(Vec2(visibleSize.width / 2, visibleSize.height - 160));
     m_availableLabel->setColor(Color3B::WHITE);
     this->addChild(m_availableLabel, 1);
@@ -369,44 +400,72 @@ void PopulationScene::setupUI()
     m_healerLabel->setColor(Color3B::WHITE);
     this->addChild(m_healerLabel, 1);
 
-    // 添加人物点击事件
-    auto warriorListener = EventListenerTouchOneByOne::create();
-    warriorListener->onTouchBegan = [this](Touch* touch, Event* event) {
-        if (m_warriorSprite->getBoundingBox().containsPoint(touch->getLocation())) {
-            onCharacterClicked(CharacterType::WARRIOR);
-            return true;
+    // 添加人物鼠标点击事件（左键增加，右键减少）
+    auto warriorListener = EventListenerMouse::create();
+    warriorListener->onMouseDown = [this](EventMouse* event) {
+        if (event->getMouseButton() == EventMouse::MouseButton::BUTTON_LEFT) {
+            if (m_warriorSprite->getBoundingBox().containsPoint(event->getLocationInView())) {
+                onCharacterClicked(CharacterType::WARRIOR, 1);  // 左键增加
+                return;
+            }
         }
-        return false;
+        else if (event->getMouseButton() == EventMouse::MouseButton::BUTTON_RIGHT) {
+            if (m_warriorSprite->getBoundingBox().containsPoint(event->getLocationInView())) {
+                onCharacterRightClicked(CharacterType::WARRIOR, 1);  // 右键减少
+                return;
+            }
+        }
         };
     _eventDispatcher->addEventListenerWithSceneGraphPriority(warriorListener, m_warriorSprite);
 
-    auto archerListener = EventListenerTouchOneByOne::create();
-    archerListener->onTouchBegan = [this](Touch* touch, Event* event) {
-        if (m_archerSprite->getBoundingBox().containsPoint(touch->getLocation())) {
-            onCharacterClicked(CharacterType::ARCHER);
-            return true;
+    auto archerListener = EventListenerMouse::create();
+    archerListener->onMouseDown = [this](EventMouse* event) {
+        if (event->getMouseButton() == EventMouse::MouseButton::BUTTON_LEFT) {
+            if (m_archerSprite->getBoundingBox().containsPoint(event->getLocationInView())) {
+                onCharacterClicked(CharacterType::ARCHER, 1);
+                return;
+            }
         }
-        return false;
+        else if (event->getMouseButton() == EventMouse::MouseButton::BUTTON_RIGHT) {
+            if (m_archerSprite->getBoundingBox().containsPoint(event->getLocationInView())) {
+                onCharacterRightClicked(CharacterType::ARCHER, 1);
+                return;
+            }
+        }
         };
     _eventDispatcher->addEventListenerWithSceneGraphPriority(archerListener, m_archerSprite);
 
-    auto mageListener = EventListenerTouchOneByOne::create();
-    mageListener->onTouchBegan = [this](Touch* touch, Event* event) {
-        if (m_mageSprite->getBoundingBox().containsPoint(touch->getLocation())) {
-            onCharacterClicked(CharacterType::MAGE);
-            return true;
+    auto mageListener = EventListenerMouse::create();
+    mageListener->onMouseDown = [this](EventMouse* event) {
+        if (event->getMouseButton() == EventMouse::MouseButton::BUTTON_LEFT) {
+            if (m_mageSprite->getBoundingBox().containsPoint(event->getLocationInView())) {
+                onCharacterClicked(CharacterType::MAGE, 1);
+                return;
+            }
         }
-        return false;
+        else if (event->getMouseButton() == EventMouse::MouseButton::BUTTON_RIGHT) {
+            if (m_mageSprite->getBoundingBox().containsPoint(event->getLocationInView())) {
+                onCharacterRightClicked(CharacterType::MAGE, 1);
+                return;
+            }
+        }
         };
     _eventDispatcher->addEventListenerWithSceneGraphPriority(mageListener, m_mageSprite);
 
-    auto healerListener = EventListenerTouchOneByOne::create();
-    healerListener->onTouchBegan = [this](Touch* touch, Event* event) {
-        if (m_healerSprite->getBoundingBox().containsPoint(touch->getLocation())) {
-            onCharacterClicked(CharacterType::HEALER);
-            return true;
+    auto healerListener = EventListenerMouse::create();
+    healerListener->onMouseDown = [this](EventMouse* event) {
+        if (event->getMouseButton() == EventMouse::MouseButton::BUTTON_LEFT) {
+            if (m_healerSprite->getBoundingBox().containsPoint(event->getLocationInView())) {
+                onCharacterClicked(CharacterType::HEALER, 1);
+                return;
+            }
         }
-        return false;
+        else if (event->getMouseButton() == EventMouse::MouseButton::BUTTON_RIGHT) {
+            if (m_healerSprite->getBoundingBox().containsPoint(event->getLocationInView())) {
+                onCharacterRightClicked(CharacterType::HEALER, 1);
+                return;
+            }
+        }
         };
     _eventDispatcher->addEventListenerWithSceneGraphPriority(healerListener, m_healerSprite);
 
@@ -428,7 +487,6 @@ void PopulationScene::setupUI()
             CC_CALLBACK_1(PopulationScene::onFightClicked, this));
     }
     else {
-        // 如果图片不存在，使用文本按钮
         fightButton = MenuItemLabel::create(
             Label::createWithTTF("开始战斗", "fonts/arial.ttf", 30),
             CC_CALLBACK_1(PopulationScene::onFightClicked, this));
@@ -443,7 +501,6 @@ void PopulationScene::setupUI()
             CC_CALLBACK_1(PopulationScene::onBackClicked, this));
     }
     else {
-        // 如果图片不存在，使用文本按钮
         backButton = MenuItemLabel::create(
             Label::createWithTTF("返回", "fonts/arial.ttf", 30),
             CC_CALLBACK_1(PopulationScene::onBackClicked, this));
@@ -455,7 +512,7 @@ void PopulationScene::setupUI()
     this->addChild(menu, 1);
 
     // 提示文字
-    auto hintLabel = Label::createWithTTF("点击人物图片分配人口", "fonts/arial.ttf", 20);
+    auto hintLabel = Label::createWithTTF("左键点击增加人口，右键点击减少人口", "fonts/arial.ttf", 20);
     hintLabel->setPosition(Vec2(visibleSize.width / 2, 180));
     hintLabel->setColor(Color3B::YELLOW);
     this->addChild(hintLabel, 1);
@@ -472,9 +529,13 @@ void PopulationScene::setupUI()
 
 void PopulationScene::updateUI()
 {
+    // 更新总人口显示
+    int currentTotal = m_populationMgr->getTotalPopulation();
+    m_totalLabel->setString(StringUtils::format("TOTLE: %d", currentTotal));
+
     // 更新可用人口
     int available = m_populationMgr->getAvailablePopulation();
-    m_availableLabel->setString(StringUtils::format("可用人口: %d", available));
+    m_availableLabel->setString(StringUtils::format("totle: %d", available));
 
     // 更新已消耗人口
     int assigned = m_populationMgr->getAssignedPopulation();
@@ -502,10 +563,10 @@ void PopulationScene::updateUI()
     }
 }
 
-void PopulationScene::onCharacterClicked(CharacterType type)
+void PopulationScene::onCharacterClicked(CharacterType type, int count)
 {
-    if (m_populationMgr->isValidAssignment(type, 1)) {
-        m_populationMgr->assignCharacter(type, 1);
+    if (m_populationMgr->isValidAssignment(type, count)) {
+        m_populationMgr->assignCharacter(type, count);
         updateUI();
 
         // 播放点击动画
@@ -527,27 +588,86 @@ void PopulationScene::onCharacterClicked(CharacterType type)
 
         // 播放音效
         AudioEngine::play2d("click.mp3", false, 0.5f);
+
+        // 显示增加提示
+        showFeedback(type, "+1", Color3B::GREEN);
     }
     else {
         // 播放错误音效
         AudioEngine::play2d("error.mp3", false, 0.5f);
 
         // 显示错误信息
-        auto visibleSize = Director::getInstance()->getVisibleSize();
-        auto errorLabel = Label::createWithTTF("人口不足！", "fonts/arial.ttf", 20);
-        errorLabel->setPosition(Vec2(visibleSize.width / 2, 220));
-        errorLabel->setColor(Color3B::RED);
-        this->addChild(errorLabel, 10);
-
-        errorLabel->runAction(Sequence::create(
-            DelayTime::create(1.5f),
-            FadeOut::create(0.5f),
-            CallFunc::create([errorLabel]() {
-                errorLabel->removeFromParent();
-                }),
-            nullptr
-        ));
+        showFeedback(type, "人口不足！", Color3B::RED);
     }
+}
+
+void PopulationScene::onCharacterRightClicked(CharacterType type, int count)
+{
+    if (m_populationMgr->isValidUnassignment(type, count)) {
+        m_populationMgr->unassignCharacter(type, count);
+        updateUI();
+
+        // 播放点击动画
+        Sprite* clickedSprite = nullptr;
+        switch (type) {
+        case CharacterType::WARRIOR: clickedSprite = m_warriorSprite; break;
+        case CharacterType::ARCHER: clickedSprite = m_archerSprite; break;
+        case CharacterType::MAGE: clickedSprite = m_mageSprite; break;
+        case CharacterType::HEALER: clickedSprite = m_healerSprite; break;
+        }
+
+        if (clickedSprite) {
+            clickedSprite->runAction(Sequence::create(
+                ScaleTo::create(0.1f, 0.8f),
+                ScaleTo::create(0.1f, 1.0f),
+                nullptr
+            ));
+        }
+
+        // 播放音效
+        AudioEngine::play2d("click.mp3", false, 0.5f);
+
+        // 显示减少提示
+        showFeedback(type, "-1", Color3B::YELLOW);
+    }
+    else {
+        // 播放错误音效
+        AudioEngine::play2d("error.mp3", false, 0.5f);
+
+        // 显示错误信息
+        showFeedback(type, "数量为0！", Color3B::RED);
+    }
+}
+
+void PopulationScene::showFeedback(CharacterType type, const std::string& message, Color3B color)
+{
+    auto visibleSize = Director::getInstance()->getVisibleSize();
+    float spacingX = visibleSize.width / 5;
+    float startY = visibleSize.height * 0.6f;
+
+    // 根据人物类型确定位置
+    float x = spacingX;
+    switch (type) {
+    case CharacterType::WARRIOR: x = spacingX; break;
+    case CharacterType::ARCHER:  x = spacingX * 2; break;
+    case CharacterType::MAGE:    x = spacingX * 3; break;
+    case CharacterType::HEALER:  x = spacingX * 4; break;
+    }
+
+    auto feedbackLabel = Label::createWithTTF(message, "fonts/arial.ttf", 18);
+    feedbackLabel->setPosition(Vec2(x, startY - 130));
+    feedbackLabel->setColor(color);
+    this->addChild(feedbackLabel, 10);
+
+    // 淡出动画
+    feedbackLabel->runAction(Sequence::create(
+        DelayTime::create(1.0f),
+        FadeOut::create(0.5f),
+        CallFunc::create([feedbackLabel]() {
+            feedbackLabel->removeFromParent();
+            }),
+        nullptr
+    ));
 }
 
 void PopulationScene::onFightClicked(Ref* sender)
