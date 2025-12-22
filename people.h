@@ -1,4 +1,4 @@
-﻿#ifndef __POPULATION_SYSTEM_H__
+#ifndef __POPULATION_SYSTEM_H__
 #define __POPULATION_SYSTEM_H__
 
 #include "cocos2d.h"
@@ -69,6 +69,7 @@ public:
 
     // 验证
     bool isValidAssignment(CharacterType type, int count = 1) const;
+    bool isValidUnassignment(CharacterType type, int count = 1) const;  // 新增
     bool isReadyForBattle() const { return getAssignedPopulation() > 0; }
 
     // 获取人物列表
@@ -79,8 +80,7 @@ public:
     void saveAssignment();
     void loadAssignment();
 
-    // 新增：设置每种人物的消耗
-    void setCharacterCost(CharacterType type, int cost);
+    // 获取每种人物的消耗
     int getCharacterCost(CharacterType type) const;
 
 private:
@@ -106,17 +106,20 @@ class PopulationScene : public Scene
 {
 public:
     static Scene* createScene(int totalPopulation);
+
     virtual bool init() override;
     CREATE_FUNC(PopulationScene);
-
+    virtual void onEnter() override;
     void setTotalPopulation(int population) { m_totalPopulation = population; }
 
 private:
     void setupUI();
     void updateUI();
-    void onCharacterClicked(CharacterType type);
+    void onCharacterClicked(CharacterType type, int count = 1);  // 修改：添加参数
+    void onCharacterRightClicked(CharacterType type, int count = 1);  // 新增
     void onFightClicked(Ref* sender);
     void onBackClicked(Ref* sender);
+    void showFeedback(CharacterType type, const std::string& message, Color3B color);  // 新增
 
     int m_totalPopulation;
     PopulationManager* m_populationMgr;
