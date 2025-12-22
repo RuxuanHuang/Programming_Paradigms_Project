@@ -11,6 +11,8 @@ using namespace ui;
 
 class COC : public Scene {
 public:
+    void createPopulationButton(); // 新增：声明人口按钮创建方法
+    virtual void onEnter() override;
     // 声明士兵创建函数
     void spawnSoldier(Soldier::Type type, cocos2d::Vec2 pos);
 
@@ -40,7 +42,18 @@ public:
     void processAttackQueue(); // 处理队列（启动下一个士兵受击）
     bool isInAttackRange(Soldier* soldier); // 判断是否进入攻击范围
 private:
+    // 新增：战斗状态
+    bool _isBattleStarted;  // 战斗是否已开始
 
+    // 新增：检查是否可以进入人口分配场景
+    bool canEnterPopulationScene() const;
+
+    Sprite* populationButton; // 新增：声明为类成员变量
+
+    // 从人口分配场景加载的最大释放数量
+    void loadMaxReleaseCountsFromPopulationManager();
+    // 重置释放计数
+    void resetSoldierReleaseCounts();
 
     // ========== 临时：各兵种等级（后续替换为队友接口） ==========
     int _infantryLevel = 1;    // 步兵等级

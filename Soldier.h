@@ -24,7 +24,21 @@ public:
         UNDER_ATTACK, // 正在受击（每秒掉血）
         DEAD          // 已死亡
     };
+    // 显式显示血条
+    void showHPBar() {
+        if (_hpBar) _hpBar->setVisible(true);
+        if (auto hpBg = _hpBar->getParent()->getChildByTag(100)) {
+            hpBg->setVisible(true);
+        }
+    }
 
+    // 显式隐藏血条
+    void hideHPBar() {
+        if (_hpBar) _hpBar->setVisible(false);
+        if (auto hpBg = _hpBar->getParent()->getChildByTag(100)) {
+            hpBg->setVisible(false);
+        }
+    }
     State getState() const { return _state; }
     void setState(State state) { _state = state; }
     bool isAlive() const { return _state != State::DEAD; } // 存活判断
@@ -66,6 +80,9 @@ public:
     void bindScene(COC* scene) { _scene = scene; }
 
 protected:
+    // 翻转精灵以改变朝向
+    void setFlippedX(bool flipped);
+
     // 新增：控制血条显隐
     void setHPBarVisible(bool visible) {
         if (_hpBar) _hpBar->setVisible(visible);

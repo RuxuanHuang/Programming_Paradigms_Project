@@ -91,50 +91,47 @@ bool Soldier::initBase(const std::string& idleImgPath, Vec2 pos, float scale) {
     return true;
 }
 
-// 1. 开始每秒扣血（无 Timer 版本）
 void Soldier::startTakeDamagePerSecond(float damagePerSec) {
     if (!isAlive() || _state == State::UNDER_ATTACK) return;
 
     _damagePerSec = damagePerSec;
     setState(State::UNDER_ATTACK);
 
-    // 新增：显示血条（包括背景）
-    setHPBarVisible(true);
-    if (_hpBar && _hpBar->getParent()) {
-        // 找到血条背景并显示（假设背景是血条的同级节点，且在血条下方）
-        auto hpBg = _hpBar->getParent()->getChildByTag(100); // 后续步骤会给背景设置Tag
-        if (hpBg) hpBg->setVisible(true);
-    }
+    // 移除自动显示血条的代码，改为由攻击队列控制显示
+    // setHPBarVisible(true);
+    // if (_hpBar && _hpBar->getParent()) {
+    //     auto hpBg = _hpBar->getParent()->getChildByTag(100);
+    //     if (hpBg) hpBg->setVisible(true);
+    // }
 
-    // 核心：用 Scheduler 直接调度，无需 Timer 指针
+    // 定时器逻辑保持不变
     Director::getInstance()->getScheduler()->schedule(
-        [this](float dt) { // 每秒执行的回调
+        [this](float dt) {
             this->onTakeDamage(_damagePerSec);
         },
-        this,               // 绑定当前士兵节点
-        1.0f,               // 间隔1秒
-        CC_REPEAT_FOREVER,  // 无限重复
-        0.0f,               // 延迟0秒开始
-        false,              // 不暂停
-        "DamageTimer_" + std::to_string((long long)this) // 唯一定时器标识（避免冲突）
+        this,
+        1.0f,
+        CC_REPEAT_FOREVER,
+        0.0f,
+        false,
+        "DamageTimer_" + std::to_string((long long)this)
     );
 }
 
 // 2. 停止扣血（通过标识取消定时器）
 void Soldier::stopTakeDamage() {
-    // 取消当前士兵的扣血定时器
     Director::getInstance()->getScheduler()->unschedule(
         "DamageTimer_" + std::to_string((long long)this),
         this
     );
     if (isAlive()) {
         setState(State::WAITING);
-        // 新增：隐藏血条（包括背景）
-        setHPBarVisible(false);
-        if (_hpBar && _hpBar->getParent()) {
-            auto hpBg = _hpBar->getParent()->getChildByTag(100);
-            if (hpBg) hpBg->setVisible(false);
-        }
+        // 移除自动隐藏血条的代码，由攻击队列控制
+        // setHPBarVisible(false);
+        // if (_hpBar && _hpBar->getParent()) {
+        //     auto hpBg = _hpBar->getParent()->getChildByTag(100);
+        //     if (hpBg) hpBg->setVisible(false);
+        // }
     }
 }
 
@@ -177,4 +174,10 @@ void Soldier::onDeath() {
             }),
         nullptr
     ));
+}
+
+void Soldier::setFlippedX(bool flipped) {
+    //  翻转士兵自身（Sprite 类型，可直接调用 setFlippedX）
+    this->Sprite::setFlippedX(flipped);
+
 }

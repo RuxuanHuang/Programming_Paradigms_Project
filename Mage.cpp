@@ -64,6 +64,9 @@ void Mage::stopWalkAnimation() {
 
 void Mage::moveToTarget(Vec2 targetPos, float duration) {
     if (_moveAction) stopAction(_moveAction);
+    // 计算当前位置与目标位置的X坐标差，判断是否需要翻转
+    bool needFlip = this->getPositionX() > targetPos.x;
+    setFlippedX(needFlip);
 
     bool* hasEntered = new bool(false);
     auto move = MoveTo::create(duration, targetPos);
