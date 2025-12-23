@@ -1,25 +1,20 @@
-#ifndef __PLAYER1_H__
-#define __PLAYER1_H__
-
+#ifndef __CAVALRY_H__
+#define __CAVALRY_H__
 #include "Soldier.h"
 
-class Player1 : public Soldier {
+class Cavalry : public Soldier {
 public:
-    static Player1* create(Vec2 pos, float scale);
-
+    static Cavalry* create(Vec2 pos, float scale);
     virtual bool init(Vec2 pos, float scale) override;
     virtual void moveToTarget(Vec2 targetPos, float duration) override;
     virtual void initWalkAnimation() override;
     virtual void playWalkAnimation() override;
     virtual void stopWalkAnimation() override;
-
 protected:
     // ========== 新增：实现属性纯虚函数 ==========
     virtual void initBaseAttributes() override;
     virtual void updateAttributesByLevel() override;
-
 private:
-    Player1() : Soldier(Type::INFANTRY) {} // 初始化类型为步兵
+    Cavalry() : Soldier(Type::CAVALRY) {} // 构造函数指定骑兵类型
 };
-
-#endif // __PLAYER1_H__
+#endif // __CAVALRY_H__

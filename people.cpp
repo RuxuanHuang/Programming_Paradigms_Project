@@ -1,9 +1,9 @@
 #include "people.h"
 
-// é™æ€æˆå‘˜åˆå§‹åŒ–
+// ¾²Ì¬³ÉÔ±³õÊ¼»¯
 PopulationManager* PopulationManager::s_instance = nullptr;
 
-// ============ Character ç±»å®ç° ============
+// ============ Character ÀàÊµÏÖ ============
 Character::Character(CharacterType type, const std::string& name, const std::string& image)
     : m_type(type)
     , m_name(name)
@@ -12,35 +12,35 @@ Character::Character(CharacterType type, const std::string& name, const std::str
 {
 }
 
-// ============ PopulationManager ç±»å®ç° ============
+// ============ PopulationManager ÀàÊµÏÖ ============
 PopulationManager::PopulationManager()
     : m_totalPopulation(0)
-    , m_warrior(nullptr)
+    , m_infantry(nullptr)
     , m_archer(nullptr)
     , m_mage(nullptr)
-    , m_healer(nullptr)
+    , m_cavalry(nullptr)
 {
-    // åˆ›å»ºå››ç§äººç‰©
-    m_warrior = new Character(CharacterType::WARRIOR, "é‡è›®äºº", "1.png");
-    m_archer = new Character(CharacterType::ARCHER, "å¼“ç®­æ‰‹", "2.png");
-    m_mage = new Character(CharacterType::MAGE, "å·¨äºº", "3.png");
-    m_healer = new Character(CharacterType::HEALER, "å“¥å¸ƒæ—", "4.png");
+    // ´´½¨ËÄÖÖÈËÎï
+    m_infantry = new Character(CharacterType::INFANTRY, "Ò°ÂùÈË", "player_walk1.png");
+    m_archer = new Character(CharacterType::ARCHER, "¹­¼ıÊÖ", "archer_icon.png");
+    m_mage = new Character(CharacterType::MAGE, "¾ŞÈË", "mage_icon.png");
+    m_cavalry = new Character(CharacterType::CAVALRY, "Õ¨µ¯ÈË", "cavalry_icon.png");
 
-    // åˆå§‹åŒ–æ¯ç§äººç‰©çš„æ¶ˆè€—
-    m_characterCosts[CharacterType::WARRIOR] = 1;
+    // ³õÊ¼»¯Ã¿ÖÖÈËÎïµÄÏûºÄ
+    m_characterCosts[CharacterType::INFANTRY] = 1;
     m_characterCosts[CharacterType::ARCHER] = 2;
     m_characterCosts[CharacterType::MAGE] = 5;
-    m_characterCosts[CharacterType::HEALER] = 1;
+    m_characterCosts[CharacterType::CAVALRY] = 1;
 
     CCLOG("PopulationManager created");
 }
 
 PopulationManager::~PopulationManager()
 {
-    delete m_warrior;
+    delete m_infantry;
     delete m_archer;
     delete m_mage;
-    delete m_healer;
+    delete m_cavalry;
 
     CCLOG("PopulationManager destroyed");
 }
@@ -80,10 +80,10 @@ int PopulationManager::getCharacterCost(CharacterType type) const
 int PopulationManager::getAssignedPopulation() const
 {
     int total = 0;
-    total += m_warrior->getCount() * getCharacterCost(CharacterType::WARRIOR);
+    total += m_infantry->getCount() * getCharacterCost(CharacterType::INFANTRY);
     total += m_archer->getCount() * getCharacterCost(CharacterType::ARCHER);
     total += m_mage->getCount() * getCharacterCost(CharacterType::MAGE);
-    total += m_healer->getCount() * getCharacterCost(CharacterType::HEALER);
+    total += m_cavalry->getCount() * getCharacterCost(CharacterType::CAVALRY);
     return total;
 }
 
@@ -146,10 +146,10 @@ int PopulationManager::getCharacterCount(CharacterType type) const
 
 void PopulationManager::resetAllCharacters()
 {
-    m_warrior->resetCount();
+    m_infantry->resetCount();
     m_archer->resetCount();
     m_mage->resetCount();
-    m_healer->resetCount();
+    m_cavalry->resetCount();
     CCLOG("All characters reset");
 }
 
@@ -198,17 +198,17 @@ bool PopulationManager::isValidUnassignment(CharacterType type, int count) const
 
 std::vector<Character*> PopulationManager::getAllCharacters() const
 {
-    return { m_warrior, m_archer, m_mage, m_healer };
+    return { m_infantry, m_archer, m_mage, m_cavalry };
 }
 
 Character* PopulationManager::getCharacter(CharacterType type) const
 {
     switch (type) {
-    case CharacterType::WARRIOR: return m_warrior;
-    case CharacterType::ARCHER:  return m_archer;
-    case CharacterType::MAGE:    return m_mage;
-    case CharacterType::HEALER:  return m_healer;
-    default: return nullptr;
+        case CharacterType::INFANTRY: return m_infantry;
+        case CharacterType::ARCHER:  return m_archer;
+        case CharacterType::MAGE:    return m_mage;
+        case CharacterType::CAVALRY:  return m_cavalry;
+        default: return nullptr;
     }
 }
 
@@ -216,10 +216,10 @@ void PopulationManager::saveAssignment()
 {
     UserDefault* userDefault = UserDefault::getInstance();
     userDefault->setIntegerForKey("population_total", m_totalPopulation);
-    userDefault->setIntegerForKey("character_warrior", m_warrior->getCount());
+    userDefault->setIntegerForKey("character_infantry", m_infantry->getCount());
     userDefault->setIntegerForKey("character_archer", m_archer->getCount());
     userDefault->setIntegerForKey("character_mage", m_mage->getCount());
-    userDefault->setIntegerForKey("character_healer", m_healer->getCount());
+    userDefault->setIntegerForKey("character_cavalry", m_cavalry->getCount());
     userDefault->flush();
     CCLOG("Population assignment saved");
 }
@@ -228,14 +228,14 @@ void PopulationManager::loadAssignment()
 {
     UserDefault* userDefault = UserDefault::getInstance();
     m_totalPopulation = userDefault->getIntegerForKey("population_total", 0);
-    m_warrior->setCount(userDefault->getIntegerForKey("character_warrior", 0));
+    m_infantry->setCount(userDefault->getIntegerForKey("character_infantry", 0));
     m_archer->setCount(userDefault->getIntegerForKey("character_archer", 0));
     m_mage->setCount(userDefault->getIntegerForKey("character_mage", 0));
-    m_healer->setCount(userDefault->getIntegerForKey("character_healer", 0));
+    m_cavalry->setCount(userDefault->getIntegerForKey("character_cavalry", 0));
     CCLOG("Population assignment loaded: total=%d", m_totalPopulation);
 }
 
-// ============ PopulationScene åœºæ™¯å®ç° ============
+// ============ PopulationScene ³¡¾°ÊµÏÖ ============
 Scene* PopulationScene::createScene(int totalPopulation)
 {
     auto scene = Scene::create();
@@ -287,17 +287,17 @@ void PopulationScene::setupUI()
     auto visibleSize = Director::getInstance()->getVisibleSize();
     Vec2 origin = Director::getInstance()->getVisibleOrigin();
 
-    // èƒŒæ™¯
+    // ±³¾°
     auto background = LayerColor::create(Color4B(50, 50, 100, 255), visibleSize.width, visibleSize.height);
     this->addChild(background, -1);
 
-    // æ ‡é¢˜
+    // ±êÌâ
     auto titleLabel = Label::createWithTTF("POPULAR SYSTEM", "fonts/arial.ttf", 36);
     titleLabel->setPosition(Vec2(visibleSize.width / 2, visibleSize.height - 50));
     titleLabel->setColor(Color3B::YELLOW);
     this->addChild(titleLabel, 1);
 
-    // æ€»äººå£æ˜¾ç¤º
+    // ×ÜÈË¿ÚÏÔÊ¾
     int currentTotal = m_populationMgr->getTotalPopulation();
     m_totalLabel = Label::createWithTTF(StringUtils::format("TOTLE: %d", currentTotal),
         "fonts/arial.ttf", 28);
@@ -305,40 +305,40 @@ void PopulationScene::setupUI()
     m_totalLabel->setColor(Color3B::GREEN);
     this->addChild(m_totalLabel, 1);
 
-    // å¯ç”¨äººå£æ˜¾ç¤º
+    // ¿ÉÓÃÈË¿ÚÏÔÊ¾
     m_availableLabel = Label::createWithTTF("TOTLE: 0", "fonts/arial.ttf", 24);
     m_availableLabel->setPosition(Vec2(visibleSize.width / 2, visibleSize.height - 160));
     m_availableLabel->setColor(Color3B::WHITE);
     this->addChild(m_availableLabel, 1);
 
-    // åˆ›å»ºäººç‰©æ˜¾ç¤ºåŒºåŸŸ
+    // ´´½¨ÈËÎïÏÔÊ¾ÇøÓò
     float startY = visibleSize.height * 0.6f;
     float spacingX = visibleSize.width / 5;
 
-    // é‡è›®äºº
-    m_warriorSprite = Sprite::create("1.png");
-    if (!m_warriorSprite) {
-        m_warriorSprite = Sprite::create();
-        m_warriorSprite->setTextureRect(Rect(0, 0, 100, 100));
-        m_warriorSprite->setColor(Color3B::RED);
+    // Ò°ÂùÈË
+    m_infantrySprite = Sprite::create("player_walk1.png");
+    if (!m_infantrySprite) {
+        m_infantrySprite = Sprite::create();
+        m_infantrySprite->setTextureRect(Rect(0, 0, 100, 100));
+        m_infantrySprite->setColor(Color3B::RED);
     }
-    m_warriorSprite->setPosition(Vec2(spacingX, startY));
-    m_warriorSprite->setScale(1.0f);
-    this->addChild(m_warriorSprite, 1);
+    m_infantrySprite->setPosition(Vec2(spacingX, startY));
+    m_infantrySprite->setScale(1.0f);
+    this->addChild(m_infantrySprite, 1);
 
-    // æ˜¾ç¤ºæ¶ˆè€—
-    auto warriorName = Label::createWithTTF("é‡è›®äºº(æ¶ˆè€—:1)", "fonts/arial.ttf", 20);
-    warriorName->setPosition(Vec2(spacingX, startY - 80));
-    warriorName->setColor(Color3B::RED);
-    this->addChild(warriorName, 1);
+    // ÏÔÊ¾ÏûºÄ
+    auto infantryName = Label::createWithTTF("Ò°ÂùÈË(ÏûºÄ:1)", "fonts/arial.ttf", 20);
+    infantryName->setPosition(Vec2(spacingX, startY - 80));
+    infantryName->setColor(Color3B::RED);
+    this->addChild(infantryName, 1);
 
-    m_warriorLabel = Label::createWithTTF("0", "fonts/arial.ttf", 24);
-    m_warriorLabel->setPosition(Vec2(spacingX, startY - 110));
-    m_warriorLabel->setColor(Color3B::WHITE);
-    this->addChild(m_warriorLabel, 1);
+    m_infantryLabel = Label::createWithTTF("0", "fonts/arial.ttf", 24);
+    m_infantryLabel->setPosition(Vec2(spacingX, startY - 110));
+    m_infantryLabel->setColor(Color3B::WHITE);
+    this->addChild(m_infantryLabel, 1);
 
-    // å¼“ç®­æ‰‹
-    m_archerSprite = Sprite::create("2.png");
+    // ¹­¼ıÊÖ
+    m_archerSprite = Sprite::create("archer_icon.png");
     if (!m_archerSprite) {
         m_archerSprite = Sprite::create();
         m_archerSprite->setTextureRect(Rect(0, 0, 100, 100));
@@ -348,7 +348,7 @@ void PopulationScene::setupUI()
     m_archerSprite->setScale(1.0f);
     this->addChild(m_archerSprite, 1);
 
-    auto archerName = Label::createWithTTF("å¼“ç®­æ‰‹(æ¶ˆè€—:2)", "fonts/arial.ttf", 20);
+    auto archerName = Label::createWithTTF("¹­¼ıÊÖ(ÏûºÄ:2)", "fonts/arial.ttf", 20);
     archerName->setPosition(Vec2(spacingX * 2, startY - 80));
     archerName->setColor(Color3B::GREEN);
     this->addChild(archerName, 1);
@@ -358,8 +358,8 @@ void PopulationScene::setupUI()
     m_archerLabel->setColor(Color3B::WHITE);
     this->addChild(m_archerLabel, 1);
 
-    // å·¨äºº
-    m_mageSprite = Sprite::create("3.png");
+    // ¾ŞÈË
+    m_mageSprite = Sprite::create("mage_icon.png");
     if (!m_mageSprite) {
         m_mageSprite = Sprite::create();
         m_mageSprite->setTextureRect(Rect(0, 0, 100, 100));
@@ -369,7 +369,7 @@ void PopulationScene::setupUI()
     m_mageSprite->setScale(1.0f);
     this->addChild(m_mageSprite, 1);
 
-    auto mageName = Label::createWithTTF("å·¨äºº(æ¶ˆè€—:5)", "fonts/arial.ttf", 20);
+    auto mageName = Label::createWithTTF("¾ŞÈË(ÏûºÄ:5)", "fonts/arial.ttf", 20);
     mageName->setPosition(Vec2(spacingX * 3, startY - 80));
     mageName->setColor(Color3B::BLUE);
     this->addChild(mageName, 1);
@@ -379,47 +379,70 @@ void PopulationScene::setupUI()
     m_mageLabel->setColor(Color3B::WHITE);
     this->addChild(m_mageLabel, 1);
 
-    // å“¥å¸ƒæ—
-    m_healerSprite = Sprite::create("4.png");
-    if (!m_healerSprite) {
-        m_healerSprite = Sprite::create();
-        m_healerSprite->setTextureRect(Rect(0, 0, 100, 100));
-        m_healerSprite->setColor(Color3B::MAGENTA);
+    // ¸ç²¼ÁÖ
+    m_cavalrySprite = Sprite::create("cavalry_icon.png");
+    if (!m_cavalrySprite) {
+        m_cavalrySprite = Sprite::create();
+        m_cavalrySprite->setTextureRect(Rect(0, 0, 100, 100));
+        m_cavalrySprite->setColor(Color3B::MAGENTA);
     }
-    m_healerSprite->setPosition(Vec2(spacingX * 4, startY));
-    m_healerSprite->setScale(1.0f);
-    this->addChild(m_healerSprite, 1);
+    m_cavalrySprite->setPosition(Vec2(spacingX * 4, startY));
+    m_cavalrySprite->setScale(1.0f);
+    this->addChild(m_cavalrySprite, 1);
 
-    auto healerName = Label::createWithTTF("å“¥å¸ƒæ—(æ¶ˆè€—:1)", "fonts/arial.ttf", 20);
-    healerName->setPosition(Vec2(spacingX * 4, startY - 80));
-    healerName->setColor(Color3B::MAGENTA);
-    this->addChild(healerName, 1);
+    auto cavalryName = Label::createWithTTF("¸ç²¼ÁÖ(ÏûºÄ:1)", "fonts/arial.ttf", 20);
+    cavalryName->setPosition(Vec2(spacingX * 4, startY - 80));
+    cavalryName->setColor(Color3B::MAGENTA);
+    this->addChild(cavalryName, 1);
 
-    m_healerLabel = Label::createWithTTF("0", "fonts/arial.ttf", 24);
-    m_healerLabel->setPosition(Vec2(spacingX * 4, startY - 110));
-    m_healerLabel->setColor(Color3B::WHITE);
-    this->addChild(m_healerLabel, 1);
+    m_cavalryLabel = Label::createWithTTF("0", "fonts/arial.ttf", 24);
+    m_cavalryLabel->setPosition(Vec2(spacingX * 4, startY - 110));
+    m_cavalryLabel->setColor(Color3B::WHITE);
+    this->addChild(m_cavalryLabel, 1);
 
-    // æ·»åŠ äººç‰©é¼ æ ‡ç‚¹å‡»äº‹ä»¶ï¼ˆå·¦é”®å¢åŠ ï¼Œå³é”®å‡å°‘ï¼‰
-    auto warriorListener = EventListenerMouse::create();
-    warriorListener->onMouseDown = [this](EventMouse* event) {
+    // Ìí¼ÓÈËÎïÊó±êµã»÷ÊÂ¼ş£¨×ó¼üÔö¼Ó£¬ÓÒ¼ü¼õÉÙ£©
+    auto infantryListener = EventListenerMouse::create();
+    // ĞŞ¸ÄÕâ¸ö»Øµ÷º¯Êı£¬Ìí¼Ó·ÀÖØ¸´µã»÷
+    infantryListener->onMouseDown = [this](EventMouse* event) {
+        // Ìí¼Ó·ÀÖØ¸´µã»÷£ºÊ¹ÓÃÒ»¸ö¾²Ì¬±äÁ¿¼ÇÂ¼ÉÏ´Îµã»÷Ê±¼ä
+        static double lastInfantryClickTime = 0;
+        double currentTime = Director::getInstance()->getTotalFrames() *
+            Director::getInstance()->getAnimationInterval();
+
+        // Èç¹û¾àÀëÉÏ´Îµã»÷Ğ¡ÓÚ0.1Ãë£¬ºöÂÔÕâ´Îµã»÷
+        if (currentTime - lastInfantryClickTime < 0.1) {
+            return;
+        }
+        lastInfantryClickTime = currentTime;
+
         if (event->getMouseButton() == EventMouse::MouseButton::BUTTON_LEFT) {
-            if (m_warriorSprite->getBoundingBox().containsPoint(event->getLocationInView())) {
-                onCharacterClicked(CharacterType::WARRIOR, 1);  // å·¦é”®å¢åŠ 
+            if (m_infantrySprite->getBoundingBox().containsPoint(event->getLocationInView())) {
+                onCharacterClicked(CharacterType::INFANTRY, 1);
                 return;
             }
         }
         else if (event->getMouseButton() == EventMouse::MouseButton::BUTTON_RIGHT) {
-            if (m_warriorSprite->getBoundingBox().containsPoint(event->getLocationInView())) {
-                onCharacterRightClicked(CharacterType::WARRIOR, 1);  // å³é”®å‡å°‘
+            if (m_infantrySprite->getBoundingBox().containsPoint(event->getLocationInView())) {
+                onCharacterRightClicked(CharacterType::INFANTRY, 1);
                 return;
             }
         }
         };
-    _eventDispatcher->addEventListenerWithSceneGraphPriority(warriorListener, m_warriorSprite);
+    _eventDispatcher->addEventListenerWithSceneGraphPriority(infantryListener, m_infantrySprite);
 
+    // 2. ¹­¼ıÊÖ¼àÌıÆ÷
     auto archerListener = EventListenerMouse::create();
     archerListener->onMouseDown = [this](EventMouse* event) {
+        // ·ÀÖØ¸´µã»÷
+        static double lastArcherClickTime = 0;
+        double currentTime = Director::getInstance()->getTotalFrames() *
+            Director::getInstance()->getAnimationInterval();
+
+        if (currentTime - lastArcherClickTime < 0.1) {
+            return;
+        }
+        lastArcherClickTime = currentTime;
+
         if (event->getMouseButton() == EventMouse::MouseButton::BUTTON_LEFT) {
             if (m_archerSprite->getBoundingBox().containsPoint(event->getLocationInView())) {
                 onCharacterClicked(CharacterType::ARCHER, 1);
@@ -435,8 +458,19 @@ void PopulationScene::setupUI()
         };
     _eventDispatcher->addEventListenerWithSceneGraphPriority(archerListener, m_archerSprite);
 
+    // 3. ·¨Ê¦¼àÌıÆ÷
     auto mageListener = EventListenerMouse::create();
     mageListener->onMouseDown = [this](EventMouse* event) {
+        // ·ÀÖØ¸´µã»÷
+        static double lastMageClickTime = 0;
+        double currentTime = Director::getInstance()->getTotalFrames() *
+            Director::getInstance()->getAnimationInterval();
+
+        if (currentTime - lastMageClickTime < 0.1) {
+            return;
+        }
+        lastMageClickTime = currentTime;
+
         if (event->getMouseButton() == EventMouse::MouseButton::BUTTON_LEFT) {
             if (m_mageSprite->getBoundingBox().containsPoint(event->getLocationInView())) {
                 onCharacterClicked(CharacterType::MAGE, 1);
@@ -452,73 +486,76 @@ void PopulationScene::setupUI()
         };
     _eventDispatcher->addEventListenerWithSceneGraphPriority(mageListener, m_mageSprite);
 
-    auto healerListener = EventListenerMouse::create();
-    healerListener->onMouseDown = [this](EventMouse* event) {
+    // 4. Æï±ø¼àÌıÆ÷
+    auto cavalryListener = EventListenerMouse::create();
+    cavalryListener->onMouseDown = [this](EventMouse* event) {
+        // ·ÀÖØ¸´µã»÷
+        static double lastCavalryClickTime = 0;
+        double currentTime = Director::getInstance()->getTotalFrames() *
+            Director::getInstance()->getAnimationInterval();
+
+        if (currentTime - lastCavalryClickTime < 0.1) {
+            return;
+        }
+        lastCavalryClickTime = currentTime;
+
         if (event->getMouseButton() == EventMouse::MouseButton::BUTTON_LEFT) {
-            if (m_healerSprite->getBoundingBox().containsPoint(event->getLocationInView())) {
-                onCharacterClicked(CharacterType::HEALER, 1);
+            if (m_cavalrySprite->getBoundingBox().containsPoint(event->getLocationInView())) {
+                onCharacterClicked(CharacterType::CAVALRY, 1);
                 return;
             }
         }
         else if (event->getMouseButton() == EventMouse::MouseButton::BUTTON_RIGHT) {
-            if (m_healerSprite->getBoundingBox().containsPoint(event->getLocationInView())) {
-                onCharacterRightClicked(CharacterType::HEALER, 1);
+            if (m_cavalrySprite->getBoundingBox().containsPoint(event->getLocationInView())) {
+                onCharacterRightClicked(CharacterType::CAVALRY, 1);
                 return;
             }
         }
         };
-    _eventDispatcher->addEventListenerWithSceneGraphPriority(healerListener, m_healerSprite);
+    _eventDispatcher->addEventListenerWithSceneGraphPriority(cavalryListener, m_cavalrySprite);
 
-    // æ·»åŠ åŠ¨ç”»æ•ˆæœ
+    // Ìí¼Ó¶¯»­Ğ§¹û
     auto rotateAction = RotateBy::create(0.5f, 10);
     auto rotateBack = RotateBy::create(0.5f, -10);
     auto sequence = Sequence::create(rotateAction, rotateBack, nullptr);
     auto repeat = RepeatForever::create(sequence);
 
-    m_warriorSprite->runAction(repeat->clone());
+    m_infantrySprite->runAction(repeat->clone());
     m_archerSprite->runAction(repeat->clone());
     m_mageSprite->runAction(repeat->clone());
-    m_healerSprite->runAction(repeat->clone());
+    m_cavalrySprite->runAction(repeat->clone());
 
-    // æˆ˜æ–—æŒ‰é’®
-    MenuItem* fightButton = nullptr;
-    if (FileUtils::getInstance()->isFileExist("fighting.png")) {
-        fightButton = MenuItemImage::create("fighting.png", "fighting.png",
-            CC_CALLBACK_1(PopulationScene::onFightClicked, this));
-    }
-    else {
-        fightButton = MenuItemLabel::create(
-            Label::createWithTTF("å¼€å§‹æˆ˜æ–—", "fonts/arial.ttf", 30),
-            CC_CALLBACK_1(PopulationScene::onFightClicked, this));
-    }
-    fightButton->setPosition(Vec2(visibleSize.width / 2, 120));
-    fightButton->setScale(1.5f);
-
-    // è¿”å›æŒ‰é’®
+  
+    // ·µ»Ø°´Å¥
     MenuItem* backButton = nullptr;
-    if (FileUtils::getInstance()->isFileExist("button.png")) {
-        backButton = MenuItemImage::create("button.png", "button.png",
+    if (FileUtils::getInstance()->isFileExist("back.png")) {
+        backButton = MenuItemImage::create("back.png", "back.png",
             CC_CALLBACK_1(PopulationScene::onBackClicked, this));
+
+        // Ìí¼ÓËõ·Å£¨¸ù¾İÍ¼Æ¬´óĞ¡µ÷ÕûÕâ¸öÖµ£¬±ÈÈç0.5±íÊ¾ËõĞ¡Ò»°ë£©
+        backButton->setScale(0.2f);
     }
     else {
         backButton = MenuItemLabel::create(
-            Label::createWithTTF("è¿”å›", "fonts/arial.ttf", 30),
+            Label::createWithTTF("BACK TO FIGHT", "fonts/arial.ttf", 30),  // ¸ÄÎª"·µ»ØÕ½¶·"
             CC_CALLBACK_1(PopulationScene::onBackClicked, this));
     }
-    backButton->setPosition(Vec2(visibleSize.width / 2, 60));
+    backButton->setPosition(Vec2(visibleSize.width / 2, 100));  // µ÷ÕûÎ»ÖÃµ½ÖĞ¼ä
 
-    auto menu = Menu::create(fightButton, backButton, nullptr);
+    // ========== ĞŞ¸Ä²Ëµ¥£¬Ö»°üº¬·µ»Ø°´Å¥ ==========
+    auto menu = Menu::create(backButton, nullptr);  // É¾³ıfightButton
     menu->setPosition(Vec2::ZERO);
     this->addChild(menu, 1);
 
-    // æç¤ºæ–‡å­—
-    auto hintLabel = Label::createWithTTF("å·¦é”®ç‚¹å‡»å¢åŠ äººå£ï¼Œå³é”®ç‚¹å‡»å‡å°‘äººå£", "fonts/arial.ttf", 20);
+    // ÌáÊ¾ÎÄ×Ö£¨¿ÉÒÔ±£Áô»òĞŞ¸Ä£©
+    auto hintLabel = Label::createWithTTF("×ó¼üµã»÷Ôö¼ÓÈË¿Ú£¬ÓÒ¼üµã»÷¼õÉÙÈË¿Ú", "fonts/arial.ttf", 20);
     hintLabel->setPosition(Vec2(visibleSize.width / 2, 180));
     hintLabel->setColor(Color3B::YELLOW);
     this->addChild(hintLabel, 1);
 
-    // å·²æ¶ˆè€—äººå£æ˜¾ç¤º
-    auto assignedLabel = Label::createWithTTF("å·²æ¶ˆè€—: 0", "fonts/arial.ttf", 20);
+
+    // ÒÑÏûºÄÈË¿ÚÏÔÊ¾
+    auto assignedLabel = Label::createWithTTF("ÒÑÏûºÄ: 0", "fonts/arial.ttf", 20);
     assignedLabel->setPosition(Vec2(visibleSize.width / 2, visibleSize.height - 190));
     assignedLabel->setColor(Color3B::YELLOW);
     assignedLabel->setTag(1000);
@@ -529,32 +566,32 @@ void PopulationScene::setupUI()
 
 void PopulationScene::updateUI()
 {
-    // æ›´æ–°æ€»äººå£æ˜¾ç¤º
+    // ¸üĞÂ×ÜÈË¿ÚÏÔÊ¾
     int currentTotal = m_populationMgr->getTotalPopulation();
     m_totalLabel->setString(StringUtils::format("TOTLE: %d", currentTotal));
 
-    // æ›´æ–°å¯ç”¨äººå£
+    // ¸üĞÂ¿ÉÓÃÈË¿Ú
     int available = m_populationMgr->getAvailablePopulation();
     m_availableLabel->setString(StringUtils::format("totle: %d", available));
 
-    // æ›´æ–°å·²æ¶ˆè€—äººå£
+    // ¸üĞÂÒÑÏûºÄÈË¿Ú
     int assigned = m_populationMgr->getAssignedPopulation();
     auto assignedLabel = (Label*)this->getChildByTag(1000);
     if (assignedLabel) {
-        assignedLabel->setString(StringUtils::format("å·²æ¶ˆè€—: %d", assigned));
+        assignedLabel->setString(StringUtils::format("ÒÑÏûºÄ: %d", assigned));
     }
 
-    // æ›´æ–°äººç‰©æ•°é‡æ˜¾ç¤º
-    m_warriorLabel->setString(StringUtils::format("%d",
-        m_populationMgr->getCharacterCount(CharacterType::WARRIOR)));
+    // ¸üĞÂÈËÎïÊıÁ¿ÏÔÊ¾
+    m_infantryLabel->setString(StringUtils::format("%d",
+        m_populationMgr->getCharacterCount(CharacterType::INFANTRY)));
     m_archerLabel->setString(StringUtils::format("%d",
         m_populationMgr->getCharacterCount(CharacterType::ARCHER)));
     m_mageLabel->setString(StringUtils::format("%d",
         m_populationMgr->getCharacterCount(CharacterType::MAGE)));
-    m_healerLabel->setString(StringUtils::format("%d",
-        m_populationMgr->getCharacterCount(CharacterType::HEALER)));
+    m_cavalryLabel->setString(StringUtils::format("%d",
+        m_populationMgr->getCharacterCount(CharacterType::CAVALRY)));
 
-    // å¦‚æœå¯ç”¨äººå£ä¸º0ï¼Œæ”¹å˜é¢œè‰²
+    // Èç¹û¿ÉÓÃÈË¿ÚÎª0£¬¸Ä±äÑÕÉ«
     if (available == 0) {
         m_availableLabel->setColor(Color3B::RED);
     }
@@ -569,13 +606,13 @@ void PopulationScene::onCharacterClicked(CharacterType type, int count)
         m_populationMgr->assignCharacter(type, count);
         updateUI();
 
-        // æ’­æ”¾ç‚¹å‡»åŠ¨ç”»
+        // ²¥·Åµã»÷¶¯»­
         Sprite* clickedSprite = nullptr;
         switch (type) {
-        case CharacterType::WARRIOR: clickedSprite = m_warriorSprite; break;
-        case CharacterType::ARCHER: clickedSprite = m_archerSprite; break;
-        case CharacterType::MAGE: clickedSprite = m_mageSprite; break;
-        case CharacterType::HEALER: clickedSprite = m_healerSprite; break;
+            case CharacterType::INFANTRY: clickedSprite = m_infantrySprite; break;
+            case CharacterType::ARCHER: clickedSprite = m_archerSprite; break;
+            case CharacterType::MAGE: clickedSprite = m_mageSprite; break;
+            case CharacterType::CAVALRY: clickedSprite = m_cavalrySprite; break;
         }
 
         if (clickedSprite) {
@@ -586,18 +623,18 @@ void PopulationScene::onCharacterClicked(CharacterType type, int count)
             ));
         }
 
-        // æ’­æ”¾éŸ³æ•ˆ
+        // ²¥·ÅÒôĞ§
         AudioEngine::play2d("click.mp3", false, 0.5f);
 
-        // æ˜¾ç¤ºå¢åŠ æç¤º
+        // ÏÔÊ¾Ôö¼ÓÌáÊ¾
         showFeedback(type, "+1", Color3B::GREEN);
     }
     else {
-        // æ’­æ”¾é”™è¯¯éŸ³æ•ˆ
+        // ²¥·Å´íÎóÒôĞ§
         AudioEngine::play2d("error.mp3", false, 0.5f);
 
-        // æ˜¾ç¤ºé”™è¯¯ä¿¡æ¯
-        showFeedback(type, "äººå£ä¸è¶³ï¼", Color3B::RED);
+        // ÏÔÊ¾´íÎóĞÅÏ¢
+        showFeedback(type, "ÈË¿Ú²»×ã£¡", Color3B::RED);
     }
 }
 
@@ -607,13 +644,13 @@ void PopulationScene::onCharacterRightClicked(CharacterType type, int count)
         m_populationMgr->unassignCharacter(type, count);
         updateUI();
 
-        // æ’­æ”¾ç‚¹å‡»åŠ¨ç”»
+        // ²¥·Åµã»÷¶¯»­
         Sprite* clickedSprite = nullptr;
         switch (type) {
-        case CharacterType::WARRIOR: clickedSprite = m_warriorSprite; break;
-        case CharacterType::ARCHER: clickedSprite = m_archerSprite; break;
-        case CharacterType::MAGE: clickedSprite = m_mageSprite; break;
-        case CharacterType::HEALER: clickedSprite = m_healerSprite; break;
+            case CharacterType::INFANTRY: clickedSprite = m_infantrySprite; break;
+            case CharacterType::ARCHER: clickedSprite = m_archerSprite; break;
+            case CharacterType::MAGE: clickedSprite = m_mageSprite; break;
+            case CharacterType::CAVALRY: clickedSprite = m_cavalrySprite; break;
         }
 
         if (clickedSprite) {
@@ -624,18 +661,18 @@ void PopulationScene::onCharacterRightClicked(CharacterType type, int count)
             ));
         }
 
-        // æ’­æ”¾éŸ³æ•ˆ
+        // ²¥·ÅÒôĞ§
         AudioEngine::play2d("click.mp3", false, 0.5f);
 
-        // æ˜¾ç¤ºå‡å°‘æç¤º
+        // ÏÔÊ¾¼õÉÙÌáÊ¾
         showFeedback(type, "-1", Color3B::YELLOW);
     }
     else {
-        // æ’­æ”¾é”™è¯¯éŸ³æ•ˆ
+        // ²¥·Å´íÎóÒôĞ§
         AudioEngine::play2d("error.mp3", false, 0.5f);
 
-        // æ˜¾ç¤ºé”™è¯¯ä¿¡æ¯
-        showFeedback(type, "æ•°é‡ä¸º0ï¼", Color3B::RED);
+        // ÏÔÊ¾´íÎóĞÅÏ¢
+        showFeedback(type, "ÊıÁ¿Îª0£¡", Color3B::RED);
     }
 }
 
@@ -645,13 +682,13 @@ void PopulationScene::showFeedback(CharacterType type, const std::string& messag
     float spacingX = visibleSize.width / 5;
     float startY = visibleSize.height * 0.6f;
 
-    // æ ¹æ®äººç‰©ç±»å‹ç¡®å®šä½ç½®
+    // ¸ù¾İÈËÎïÀàĞÍÈ·¶¨Î»ÖÃ
     float x = spacingX;
     switch (type) {
-    case CharacterType::WARRIOR: x = spacingX; break;
-    case CharacterType::ARCHER:  x = spacingX * 2; break;
-    case CharacterType::MAGE:    x = spacingX * 3; break;
-    case CharacterType::HEALER:  x = spacingX * 4; break;
+        case CharacterType::INFANTRY: x = spacingX; break;
+        case CharacterType::ARCHER:  x = spacingX * 2; break;
+        case CharacterType::MAGE:    x = spacingX * 3; break;
+        case CharacterType::CAVALRY:  x = spacingX * 4; break;
     }
 
     auto feedbackLabel = Label::createWithTTF(message, "fonts/arial.ttf", 18);
@@ -659,7 +696,7 @@ void PopulationScene::showFeedback(CharacterType type, const std::string& messag
     feedbackLabel->setColor(color);
     this->addChild(feedbackLabel, 10);
 
-    // æ·¡å‡ºåŠ¨ç”»
+    // µ­³ö¶¯»­
     feedbackLabel->runAction(Sequence::create(
         DelayTime::create(1.0f),
         FadeOut::create(0.5f),
@@ -670,64 +707,17 @@ void PopulationScene::showFeedback(CharacterType type, const std::string& messag
     ));
 }
 
-void PopulationScene::onFightClicked(Ref* sender)
-{
-    if (m_populationMgr->isReadyForBattle()) {
-        // ä¿å­˜åˆ†é…
-        m_populationMgr->saveAssignment();
 
-        // æ’­æ”¾æˆåŠŸéŸ³æ•ˆ
-        AudioEngine::play2d("success.mp3", false, 0.7f);
-
-        // æ˜¾ç¤ºæˆåŠŸä¿¡æ¯
-        auto visibleSize = Director::getInstance()->getVisibleSize();
-        auto successLabel = Label::createWithTTF("åˆ†é…å®Œæˆï¼Œå¼€å§‹æˆ˜æ–—ï¼", "fonts/arial.ttf", 30);
-        successLabel->setPosition(Vec2(visibleSize.width / 2, visibleSize.height / 2));
-        successLabel->setColor(Color3B::GREEN);
-        successLabel->setScale(0.1f);
-        this->addChild(successLabel, 10);
-
-        successLabel->runAction(Sequence::create(
-            ScaleTo::create(0.3f, 1.2f),
-            ScaleTo::create(0.2f, 1.0f),
-            DelayTime::create(1.0f),
-            FadeOut::create(0.5f),
-            CallFunc::create([successLabel]() {
-                successLabel->removeFromParent();
-                }),
-            nullptr
-        ));
-
-        CCLOG("Population assignment saved. Total assigned: %d",
-            m_populationMgr->getAssignedPopulation());
-    }
-    else {
-        // æ’­æ”¾é”™è¯¯éŸ³æ•ˆ
-        AudioEngine::play2d("error.mp3", false, 0.5f);
-
-        // æ˜¾ç¤ºé”™è¯¯ä¿¡æ¯
-        auto visibleSize = Director::getInstance()->getVisibleSize();
-        auto errorLabel = Label::createWithTTF("è¯·è‡³å°‘åˆ†é…ä¸€ä¸ªäººå£ï¼", "fonts/arial.ttf", 24);
-        errorLabel->setPosition(Vec2(visibleSize.width / 2, 200));
-        errorLabel->setColor(Color3B::RED);
-        this->addChild(errorLabel, 10);
-
-        errorLabel->runAction(Sequence::create(
-            DelayTime::create(1.5f),
-            FadeOut::create(0.5f),
-            CallFunc::create([errorLabel]() {
-                errorLabel->removeFromParent();
-                }),
-            nullptr
-        ));
-    }
-}
-
-void PopulationScene::onBackClicked(Ref* sender)
-{
-    // æ’­æ”¾ç‚¹å‡»éŸ³æ•ˆ
+// ĞŞ¸ÄonBackClickedº¯Êı
+void PopulationScene::onBackClicked(Ref* sender) {
+    // ²¥·Åµã»÷ÒôĞ§
     AudioEngine::play2d("click.mp3", false, 0.5f);
 
-    // è¿”å›ä¸Šä¸€ä¸ªåœºæ™¯
+    // ±£´æ·ÖÅä
+    m_populationMgr->saveAssignment();
+
+    CCLOG("±£´æ·ÖÅä²¢·µ»ØÕ½¶·³¡¾°");
+
+    // Ö±½Ópop³¡¾°·µ»Øµ½COCScene
     Director::getInstance()->popScene();
 }

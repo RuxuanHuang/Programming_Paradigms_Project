@@ -1,8 +1,21 @@
-#include "Player1.h"
+#include "Cavalry.h"
 #include "BattleScene1.h" // 包含场景头文件，访问队列
 
-Player1* Player1::create(Vec2 pos, float scale) {
-    auto p = new Player1();
+// ========== 新增：1级基础属性 ==========
+void Cavalry::initBaseAttributes() {
+    _maxHP = 50;   // 1级最大生命值
+    _attack = 10;   // 1级攻击力
+}
+
+// ========== 新增：等级成长公式（每级血+20，攻+3） ==========
+void Cavalry::updateAttributesByLevel() {
+    int level = getLevel();
+    _maxHP = 50 + (level - 1) * 20; 
+    _attack = 10 + (level - 1) * 3;   
+}
+
+Cavalry* Cavalry::create(Vec2 pos, float scale) {
+    auto p = new Cavalry();
     if (p && p->init(pos, scale)) {
         p->autorelease();
         return p;
@@ -11,36 +24,19 @@ Player1* Player1::create(Vec2 pos, float scale) {
     return nullptr;
 }
 
-bool Player1::init(Vec2 pos, float scale) {
- 
-    if (!initBase("player_walk1.png", pos, scale)) {
+bool Cavalry::init(Vec2 pos, float scale) {
+    // 骑兵静止图片
+    if (!initBase("cavalry_walk1.png", pos, scale)) {
+        CCLOG("骑兵初始化失败：图片不存在！");
         return false;
     }
-
-    _walkFrames = {
-        "player_walk1.png",
-        "player_walk2.png",
-        "player_walk3.png",
-        "player_walk4.png"
-    };
+    // 骑兵行走帧图片
+    _walkFrames = { "cavalry_walk1.png", "cavalry_walk2.png", "cavalry_walk3.png", "cavalry_walk4.png" };
     initWalkAnimation();
     return true;
 }
 
-// ========== 新增：1级基础属性 ==========
-void Player1::initBaseAttributes() {
-    _maxHP = 100;   // 1级最大生命值
-    _attack = 10;   // 1级攻击力
-}
-
-// ========== 新增：等级成长公式（每级血+20，攻+3） ==========
-void Player1::updateAttributesByLevel() {
-    int level = getLevel();
-    _maxHP = 100 + (level - 1) * 20; 
-    _attack = 10 + (level - 1) * 3; 
-}
-
-void Player1::initWalkAnimation() {
+void Cavalry::initWalkAnimation() {
     Vector<SpriteFrame*> frames;
     for (auto& path : _walkFrames) {
         auto texture = Director::getInstance()->getTextureCache()->addImage(path);
@@ -48,16 +44,17 @@ void Player1::initWalkAnimation() {
             texture->getContentSize().width, texture->getContentSize().height));
         frames.pushBack(frame);
     }
-    _walkAnimation = Animation::createWithSpriteFrames(frames, 0.2f);
+    // 骑兵动画更快（0.1秒/帧）
+    _walkAnimation = Animation::createWithSpriteFrames(frames, 0.1f);
     _walkAnimation->setLoops(-1);
 }
 
-void Player1::playWalkAnimation() {
+void Cavalry::playWalkAnimation() {
     if (_walkAction) stopAction(_walkAction);
     _walkAction = runAction(Animate::create(_walkAnimation));
 }
 
-void Player1::stopWalkAnimation() {
+void Cavalry::stopWalkAnimation() {
     if (_walkAction) {
         stopAction(_walkAction);
         _walkAction = nullptr;
@@ -65,12 +62,10 @@ void Player1::stopWalkAnimation() {
     }
 }
 
-
-
-void Player1::moveToTarget(Vec2 targetPos, float duration) {
+void Cavalry::moveToTarget(Vec2 targetPos, float duration) {
     if (_moveAction) stopAction(_moveAction);
     // 计算当前位置与目标位置的X坐标差，判断是否需要翻转
-    bool needFlip = this->getPositionX() > targetPos.x;
+    bool needFlip = this->getPositionX() < targetPos.x;
     setFlippedX(needFlip);
 
     bool* hasEntered = new bool(false);
@@ -81,7 +76,7 @@ void Player1::moveToTarget(Vec2 targetPos, float duration) {
         if (*hasEntered) return;
 
         float distance = this->getPosition().distance(targetPos);
-        const float NEAR_DISTANCE = 500.0f;
+        const float NEAR_DISTANCE = 50.0f;
         if (distance <= NEAR_DISTANCE) {
             *hasEntered = true;
             // 加入攻击队列（替代原有销毁队列）

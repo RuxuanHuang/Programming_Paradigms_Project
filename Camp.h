@@ -7,7 +7,8 @@
 #include "Building.h" // 包含基类头文件
 #include "TownHall.h" // 包含子类头文件
 #include "BuildersHut.h"
-
+#include"Store.h"
+#include "BattleScene1.h" 
 
 class Camp : public cocos2d::Scene
 {
@@ -19,7 +20,8 @@ public:
 
     void selectBuilding(Building* building);
     void clearSelection();
-
+    void changeMapSkin();
+    void enterBattleScene();
 private:
     // --- 场景内部变量 ---
 
@@ -41,6 +43,13 @@ private:
 
     Building* _selectedBuilding = nullptr;
     bool _mapMoved = false;
+
+    Store* _store = nullptr;
+    // 新增：保存操作栏实例（用于设置换肤回调）
+    BuildingActionBar* _globalActionBar = nullptr;
+    // 新增：当前地图皮肤名称
+    std::string _currentMapSkin = "others/Camp.png";
+
 };
 
 #endif // __CAMP_H__

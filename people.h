@@ -1,5 +1,5 @@
-#ifndef __POPULATION_SYSTEM_H__
-#define __POPULATION_SYSTEM_H__
+#ifndef __PEOPLE_H__
+#define __PEOPLE_H__
 
 #include "cocos2d.h"
 #include <vector>
@@ -9,16 +9,16 @@
 #include "audio/include/AudioEngine.h"
 USING_NS_CC;
 
-// äººç‰©ç±»å‹æšä¸¾
+// ÈËÎïÀàĞÍÃ¶¾Ù
 enum class CharacterType
 {
-    WARRIOR = 0,    // é‡è›®äºº
-    ARCHER = 1,     // å¼“ç®­æ‰‹
-    MAGE = 2,       // å·¨äºº
-    HEALER = 3      // å“¥å¸ƒæ—
+    INFANTRY = 0,    // Ò°ÂùÈË
+    ARCHER = 1,     // ¹­¼ıÊÖ
+    MAGE = 2,       // ¾ŞÈË
+    CAVALRY = 3      // Õ¨µ¯ÈË
 };
 
-// äººç‰©ç±»
+// ÈËÎïÀà
 class Character
 {
 public:
@@ -41,46 +41,46 @@ private:
     int m_count;
 };
 
-// äººå£åˆ†é…ç®¡ç†å™¨
+// ÈË¿Ú·ÖÅä¹ÜÀíÆ÷
 class PopulationManager
 {
 public:
     static PopulationManager* getInstance();
     static void destroyInstance();
 
-    // åˆå§‹åŒ–
+    // ³õÊ¼»¯
     void initialize(int totalPopulation);
 
-    // è·å–/è®¾ç½®æ€»äººå£
+    // »ñÈ¡/ÉèÖÃ×ÜÈË¿Ú
     int getTotalPopulation() const { return m_totalPopulation; }
     void setTotalPopulation(int population) { m_totalPopulation = population; }
 
-    // è·å–å·²åˆ†é…äººå£
+    // »ñÈ¡ÒÑ·ÖÅäÈË¿Ú
     int getAssignedPopulation() const;
 
-    // è·å–å‰©ä½™å¯åˆ†é…äººå£
+    // »ñÈ¡Ê£Óà¿É·ÖÅäÈË¿Ú
     int getAvailablePopulation() const;
 
-    // äººç‰©æ“ä½œ
+    // ÈËÎï²Ù×÷
     bool assignCharacter(CharacterType type, int count = 1);
     bool unassignCharacter(CharacterType type, int count = 1);
     int getCharacterCount(CharacterType type) const;
     void resetAllCharacters();
 
-    // éªŒè¯
+    // ÑéÖ¤
     bool isValidAssignment(CharacterType type, int count = 1) const;
-    bool isValidUnassignment(CharacterType type, int count = 1) const;  // æ–°å¢
+    bool isValidUnassignment(CharacterType type, int count = 1) const;  // ĞÂÔö
     bool isReadyForBattle() const { return getAssignedPopulation() > 0; }
 
-    // è·å–äººç‰©åˆ—è¡¨
+    // »ñÈ¡ÈËÎïÁĞ±í
     std::vector<Character*> getAllCharacters() const;
     Character* getCharacter(CharacterType type) const;
 
-    // ä¿å­˜/åŠ è½½
+    // ±£´æ/¼ÓÔØ
     void saveAssignment();
     void loadAssignment();
 
-    // è·å–æ¯ç§äººç‰©çš„æ¶ˆè€—
+    // »ñÈ¡Ã¿ÖÖÈËÎïµÄÏûºÄ
     int getCharacterCost(CharacterType type) const;
 
 private:
@@ -90,18 +90,18 @@ private:
     static PopulationManager* s_instance;
 
     int m_totalPopulation;
-    Character* m_warrior;
+    Character* m_infantry;
     Character* m_archer;
     Character* m_mage;
-    Character* m_healer;
+    Character* m_cavalry;
     std::map<CharacterType, int> m_characterCosts;
 
-    // ç¦æ­¢æ‹·è´
+    // ½ûÖ¹¿½±´
     PopulationManager(const PopulationManager&) = delete;
     PopulationManager& operator=(const PopulationManager&) = delete;
 };
 
-// äººå£åˆ†é…åœºæ™¯
+// ÈË¿Ú·ÖÅä³¡¾°
 class PopulationScene : public Scene
 {
 public:
@@ -115,26 +115,25 @@ public:
 private:
     void setupUI();
     void updateUI();
-    void onCharacterClicked(CharacterType type, int count = 1);  // ä¿®æ”¹ï¼šæ·»åŠ å‚æ•°
-    void onCharacterRightClicked(CharacterType type, int count = 1);  // æ–°å¢
-    void onFightClicked(Ref* sender);
+    void onCharacterClicked(CharacterType type, int count = 1);  // ĞŞ¸Ä£ºÌí¼Ó²ÎÊı
+    void onCharacterRightClicked(CharacterType type, int count = 1);  // ĞÂÔö
     void onBackClicked(Ref* sender);
-    void showFeedback(CharacterType type, const std::string& message, Color3B color);  // æ–°å¢
+    void showFeedback(CharacterType type, const std::string& message, Color3B color);  // ĞÂÔö
 
     int m_totalPopulation;
     PopulationManager* m_populationMgr;
 
-    // UIå…ƒç´ 
+    // UIÔªËØ
     Label* m_totalLabel;
     Label* m_availableLabel;
-    Label* m_warriorLabel;
+    Label* m_infantryLabel;
     Label* m_archerLabel;
     Label* m_mageLabel;
-    Label* m_healerLabel;
-    Sprite* m_warriorSprite;
+    Label* m_cavalryLabel;
+    Sprite* m_infantrySprite;
     Sprite* m_archerSprite;
     Sprite* m_mageSprite;
-    Sprite* m_healerSprite;
+    Sprite* m_cavalrySprite;
 };
 
-#endif // __POPULATION_SYSTEM_H__
+#endif // __PEOPLE_H__
