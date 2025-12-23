@@ -43,10 +43,11 @@ bool TownHall::init(const std::string& buildingFile,
     // 3. 设置大本营等级信息
     for (int i = 1; i <= 3; i++) {
         _upgradeSprites[i] = levelInformation{ hpValues[i - 1], upgradeCosts[i - 1], "" };
-        std::string spriteFile = StringUtils::format("TownHall/Town_Hall%d.png", i);
+        std::string spriteFile = StringUtils::format("Town_Hall/Town_Hall%d.png", i);
         this->setUpgradeSprite(i, spriteFile);
     }
 
 
     return true;
+
 }
