@@ -10,6 +10,7 @@
 #include "BattleScene1.h" 
 #include"Archer_Tower.h"
 #include"Wall.h"
+#include"Cannon.h"
 
 USING_NS_CC;
 
@@ -46,12 +47,10 @@ bool Camp::init()
     auto visibleSize = Director::getInstance()->getVisibleSize();
     Vec2 origin = Director::getInstance()->getVisibleOrigin();
 
-    _store = Store::create();
-    _store->setVisible(false);     // 初始隐藏
-    this->addChild(_store, 1000);  // UI 层级要高
+    
 
     // 地图精灵初始化
-    auto mapSprite = Sprite::create("others/Camp.png");
+    mapSprite = Sprite::create("others/Camp.png");
     if (mapSprite == nullptr)
     {
         problemLoading("'Campaaa.png'");
@@ -122,73 +121,16 @@ bool Camp::init()
     if (StoreButton) {
 
         StoreButton->setScale(0.15f);
-        StoreButton->setPosition(Vec2(visibleSize.width * 0.95f, 180));
+        StoreButton->setPosition(Vec2(visibleSize.width * 0.95f, 100));
         this->addChild(StoreButton, 100);
 
         StoreButton->addClickEventListener([=](Ref*) {
-            _store->setVisible(true);
+            openStore();
             });
 
     }
     
-    auto GoldStorage = GoldStorage::create("Gold_Storage/Gold_Storage1.png");
-    if (GoldStorage == nullptr)
-    {
-        problemLoading("'Gold_Storage1.png' ");
-    }
-    else {
-        GoldStorage->setTilePosition(mapSprite, -5, -5);
-        mapSprite->addChild(GoldStorage, 1);
-        _building = GoldStorage;
-    }
-    auto ElixirStorage = ElixirStorage::create("Elixir_Storage/Elixir_Storage1.png");
-    if (GoldStorage == nullptr)
-    {
-        problemLoading("'Elixir_Storage1.png' ");
-    }
-    else {
-        ElixirStorage->setTilePosition(mapSprite, -10, -10);
-        mapSprite->addChild(ElixirStorage, 1);
-        _building = ElixirStorage;
-    }
-    auto GoldMine = GoldMine::create("Gold_Mine/Gold_Mine1.png");
-    if (GoldMine == nullptr)
-    {
-        problemLoading("'Gold_Mine1.png' ");
-    }
-    else {
-        GoldMine->setTilePosition(mapSprite, 5, -5);
-        mapSprite->addChild(GoldMine, 1);
-        _building = GoldMine;
-    }
-    auto ElixirCollector = ElixirCollector::create("Elixir_Collector/Elixir_Collector1.png");
-    if (GoldMine == nullptr)
-    {
-        problemLoading("'Elixir_Collector1.png' ");
-    }
-    else {
-        ElixirCollector->setTilePosition(mapSprite, 12,13);
-        mapSprite->addChild(ElixirCollector, 1);
-        _building = ElixirCollector;
-    }
-    auto Army = ArmyCamp::create("Army_Camp/Army_Camp1.png");
-    if (Army == nullptr)
-    {
-        problemLoading("'Army_Camp1.png' ");
-    }
-    else {
-        Army->setTilePosition(mapSprite, -12.5, 13.5);
-        mapSprite->addChild(Army, 1);
-        _building = Army;
-    }
-    auto Tower = ArcherTower::create("Archer_Tower/Archer_Tower1.png");
-    Tower->setTilePosition(mapSprite, 0, -13);
-    mapSprite->addChild(Tower, 1);
-    _building = Tower;
-    auto Wall = Wall::create("Wall/Wall1.png");
-    Wall->setTilePosition(mapSprite, 0, 13);
-    mapSprite->addChild(Wall, 1);
-    _building = Wall;
+  
     
     // 场景全局/地图事件监听器 (处理滚轮和非房子区域的拖动)
     auto _mouseListener = EventListenerMouse::create();
@@ -445,6 +387,127 @@ void Camp::enterBattleScene()
     auto battleScene = BattleScene1::createScene(); 
 
     
-    Director::getInstance()->replaceScene(battleScene);
+    Director::getInstance()->pushScene(battleScene);
    
+}
+
+// 在大本营场景中
+void Camp::openStore() {
+    auto storeScene = Store::create();
+
+    // 设置卡片选择回调
+    storeScene->setCardSelectCallback([this](const std::string& cardName) {
+        // 根据卡片名称创建对应的建筑
+        this->createBuildingFromCard(cardName);
+        });
+
+    Director::getInstance()->pushScene(storeScene);
+}
+
+void Camp::createBuildingFromCard(const std::string& cardName) {
+    // 根据卡片名称创建对应的建筑
+    Building* newBuilding = nullptr;
+
+    if (cardName == "Cannon") {
+        auto cannon = Cannon::create("Cannon/Cannon1.png");
+        if (cannon) {
+            newBuilding = cannon;
+            CCLOG("创建加农炮");
+        }
+    }
+    else if (cardName == "Archer Tower") {
+        auto archerTower = ArcherTower::create("Archer_Tower/Archer_Tower1.png");
+        if (archerTower) {
+            newBuilding = archerTower;
+            CCLOG("创建箭塔");
+        }
+    }
+    else if (cardName == "Wall") {
+        auto wall = Wall::create("Wall/Wall1.png");
+        if (wall) {
+            newBuilding = wall;
+            CCLOG("创建城墙");
+        }
+    }
+    else if (cardName == "Army Camp") {
+        auto armyCamp = ArmyCamp::create("Army_Camp/Army_Camp1.png");
+        if (armyCamp) {
+            newBuilding = armyCamp;
+            CCLOG("创建兵营");
+        }
+    }
+    else if (cardName == "Gold Mine") {
+        auto goldMine = GoldMine::create("Gold_Mine/Gold_Mine1.png");
+        if (goldMine) {
+            newBuilding = goldMine;
+            CCLOG("创建金矿");
+        }
+    }
+    else if (cardName == "Elixir Collector") {
+        auto elixirCollector = ElixirCollector::create("Elixir_Collector/Elixir_Collector1.png");
+        if (elixirCollector) {
+            newBuilding = elixirCollector;
+            CCLOG("创建圣水收集器");
+        }
+    }
+    else if (cardName == "Gold Storage") {
+        auto goldStorage = GoldStorage::create("Gold_Storage/Gold_Storage1.png");
+        if (goldStorage) {
+            newBuilding = goldStorage;
+            CCLOG("创建金库");
+        }
+    }
+    else if (cardName == "Elixir Storage") {
+        auto elixirStorage = ElixirStorage::create("Elixir_Storage/Elixir_Storage1.png");
+        if (elixirStorage) {
+            newBuilding = elixirStorage;
+            CCLOG("创建圣水瓶");
+        }
+    }
+    else {
+        CCLOG("未知的建筑名称: %s", cardName.c_str());
+        return;
+    }
+
+    if (newBuilding) {
+        
+        newBuilding->setTilePosition(mapSprite, 0, 0);
+        
+
+        // 添加到地图上
+        mapSprite->addChild(newBuilding, 1);
+
+        // 添加到存储向量中（关键步骤！）
+        _allBuildings.pushBack(newBuilding);
+
+        // 延迟一帧创建操作栏，确保我们已经完全回到了Camp场景
+        this->scheduleOnce([this, newBuilding](float dt) {
+            // 再次检查建筑是否还存在
+            if (newBuilding && newBuilding->getParent()) {
+                // 创建操作栏（如果还没有的话）
+                if (newBuilding->_actionBar == nullptr) {
+                    newBuilding->_actionBar = BuildingActionBar::create();
+                    newBuilding->_actionBar->setVisible(false);
+
+                    // 添加到Camp场景
+                    this->addChild(newBuilding->_actionBar, 1000);
+
+                    CCLOG("为建筑创建操作栏，父节点: %p", this);
+                }
+
+                // 选择新建筑
+                this->selectBuilding(newBuilding);
+
+                CCLOG("延迟选择建筑完成");
+            }
+            else {
+                CCLOG("警告：建筑在延迟回调中无效");
+            }
+            }, 0.01f, "create_action_bar_" + cardName); // 使用很小的延迟
+
+        CCLOG("成功创建建筑: %s，当前总建筑数: %zu", cardName.c_str(), _allBuildings.size());
+    }
+    else {
+        CCLOG("创建建筑失败，可能图片路径错误: %s", cardName.c_str());
+    }
 }

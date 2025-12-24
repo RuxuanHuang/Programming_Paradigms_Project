@@ -5,7 +5,7 @@
 #include"BattleScene1.h"
 USING_NS_CC;
 const float LABEL_OFFSET_Y = 20.0f;  // 标签在建筑上方的偏移量
-const float LABEL_FONT_SIZE = 45.0f; // 字体大小
+const float LABEL_FONT_SIZE = 20.0f; // 字体大小
 
 
 Building::Building() :
@@ -534,6 +534,7 @@ void Building::setSelected(bool selected)
                 _actionBar->setVisible(false);
                 auto scene = Director::getInstance()->getRunningScene();
                 scene->addChild(_actionBar, 1000);
+                
             }
             // 设置回调（使用lambda捕获this）
             _actionBar->setCallbacks(
