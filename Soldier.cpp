@@ -1,9 +1,12 @@
 #include "Soldier.h"
 #include "BattleScene1.h"
+#include"MapTools.h"
+#include"Building.h"
 #include "Player1.h"    // 步兵
 #include "Archer.h"     // 弓箭手
 #include "Cavalry.h"    // 骑兵
 #include "Mage.h"       // 法师
+#include "AStar.h"
 using namespace cocos2d;
 using namespace cocos2d::ui;
 
@@ -51,6 +54,7 @@ void Soldier::updateHPBar() {
 
 Soldier* Soldier::create(Type type, Vec2 pos, float scale) {
     Soldier* soldier = nullptr;
+
     switch (type) {
         case Type::INFANTRY:
             soldier = Player1::create(pos, scale);
@@ -86,6 +90,12 @@ bool Soldier::initBase(const std::string& idleImgPath, Vec2 pos, float scale) {
     initBaseAttributes();       // 加载1级基础属性
     updateAttributesByLevel();  // 根据当前等级计算最终属性
     _currentHP = _maxHP;        // 初始满血
+
+    // ========== 新增：初始化_tilePos ==========
+    // 这里需要将世界坐标转换为格子坐标
+    // 但由于此时还没有地图节点，我们可以先设置为默认值
+    // 稍后在moveToBuilding中会重新设置
+    _tilePos = Vec2::ZERO;
 
     initHPBar();
     return true;
@@ -180,4 +190,147 @@ void Soldier::setFlippedX(bool flipped) {
     //  翻转士兵自身（Sprite 类型，可直接调用 setFlippedX）
     this->Sprite::setFlippedX(flipped);
 
+}
+
+///////////////////////////////////////////////////
+Vec2 Soldier::chooseTargetTile(Building* b)
+{
+    CCLOG("Soldier::chooseTargetTile");
+    Vec2 start = _tilePos;
+    auto tiles = b->getAttackTiles();
+    CCLOG("pppppppppppppppp：(%.1f, %.1f)", start.x, start.y);
+    CCLOG("oooooooooooooooooooooo：%d", (int)tiles.size());
+    Vec2 best;
+    int bestCost = INT_MAX;
+
+    for (auto& t : tiles)
+    {
+        auto path = findPath(start, t);
+        if (!path.empty() && path.size() < bestCost)
+        {
+            bestCost = path.size();
+            best = t;
+        }
+    }
+    return best;
+}
+
+void Soldier::moveToBuilding(Building* target) {
+    if (!target) {
+        CCLOG("错误：moveToBuilding传入的目标建筑为空");
+        return;
+    }
+
+    CCLOG("Soldier::moveToBuilding 开始，目标建筑：%p", target);
+
+    // 选择目标格子
+    Vec2 targetTile = chooseTargetTile(target);
+    CCLOG("当前士兵格子位置：(%.1f, %.1f)，目标格子：(%.1f, %.1f)",
+        _tilePos.x, _tilePos.y, targetTile.x, targetTile.y);
+
+    // 使用A*寻路
+    auto path = findPath(_tilePos, targetTile);
+
+    if (path.empty()) {
+        CCLOG("警告：未找到路径到目标格子！");
+        return;
+    }
+
+    CCLOG("找到路径，包含%d个点", (int)path.size());
+    for (int i = 0; i < path.size(); i++) {
+        CCLOG("  路径点[%d]: (%.1f,%.1f)", i, path[i].x, path[i].y);
+    }
+
+    Node* parentNode = this->getParent();
+    if (!parentNode) {
+        CCLOG("Soldier has no parent node");
+        return;
+        
+    }
+    
+            // 尝试找到真正的地图 sprite（BattleScene1 中使用 CAMP_SPRITE_TAG 标记）
+        Node * mapNode = parentNode->getChildByTag(1);
+    if (!mapNode) {
+                // 如果 parentNode 不是 Scene，退而求其次再从运行场景查找一次
+            Scene * running = Director::getInstance()->getRunningScene();
+        if (running) mapNode = running->getChildByTag(1);
+        
+    }
+     if (!mapNode) {
+        CCLOG("Cannot find map sprite (CAMP_SPRITE_TAG). Move aborted.");
+        return;
+        
+    }
+
+    Vector<FiniteTimeAction*> actions;
+
+    // ========== 开始走路动画 ==========
+    this->playWalkAnimation();
+    CCLOG("开始播放走路动画");
+
+    // 创建移动动作序列
+    for (size_t i = 1; i < path.size(); i++) { // 从第1个点开始（第0个是起点）
+        Vec2 tile = path[i];
+
+  
+
+               // 将格子坐标转换为地图局部坐标
+        Vec2 mapLocal = tileToMapLocal(mapNode, tile.x, tile.y, false);
+
+        // 从 tile 中心 → tile 底部
+         mapLocal.y -= BATTLE_MAP_TILE_H * 0.5f;
+
+        // 再根据士兵脚底微调（非常重要）
+        mapLocal.y += 20.0f; 
+
+        // 将地图局部坐标转换为世界坐标
+        Vec2 worldPos = mapNode->convertToWorldSpace(mapLocal);
+ 
+
+        // ========== 新增：根据移动方向设置翻转 ==========
+        if (i == 1) {
+            // 根据第一个移动方向决定是否翻转
+            Vec2 prevTile = path[i - 1];
+            if (tile.x < prevTile.x) {
+                // 向左移动，需要翻转
+                this->setFlippedX(true);
+                CCLOG("士兵向左移动，设置翻转");
+            }
+            else if (tile.x > prevTile.x) {
+                // 向右移动，不需要翻转
+                this->setFlippedX(false);
+                CCLOG("士兵向右移动，取消翻转");
+            }
+            // 上下移动不需要翻转
+        }
+
+        actions.pushBack(Sequence::create(
+            MoveTo::create(0.3f, worldPos),
+            CallFunc::create([this, tile]() {
+                // 到达这个 tile 后，才更新逻辑位置
+                _tilePos = tile;
+                }),
+            nullptr
+        ));
+    }
+
+    // 在移动序列最后添加回调
+    actions.pushBack(CallFunc::create([this]() {
+        CCLOG("士兵移动动作序列完成");
+
+        // ========== 新增：停止走路动画 ==========
+        this->stopWalkAnimation();
+        CCLOG("停止走路动画");
+
+        // 检查是否设置了到达目标的回调
+        if (this->onReachTarget) {
+            this->onReachTarget(this);
+        }
+        else {
+            CCLOG("警告：士兵没有设置onReachTarget回调");
+        }
+        }));
+
+    // 执行动作序列
+    runAction(Sequence::create(actions));
 }

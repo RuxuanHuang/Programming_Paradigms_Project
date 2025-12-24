@@ -5,10 +5,25 @@
 #include "ui/CocosGUI.h" // 引入UI组件头文件
 #include <functional>
 #include <vector>
+#include "Building.h"
 USING_NS_CC;
 
 class BattleScene1;
 class Soldier : public Sprite {
+public:
+    void moveToBuilding(Building* target);
+    Vec2 chooseTargetTile(Building* b);
+
+    void setTilePosition(const cocos2d::Vec2& tilePos) {
+        _tilePos = tilePos;
+        CCLOG("士兵设置格子位置: (%.1f, %.1f)", _tilePos.x, _tilePos.y);
+    }
+
+private:
+    cocos2d::Vec2 _tilePos;
+
+//////////////////////
+
 public:
     enum class Type {
         INFANTRY,   // 步兵（对应原Player1）

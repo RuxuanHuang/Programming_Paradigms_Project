@@ -7,6 +7,7 @@
 #include"ResourceCollector.h"
 #include"Army_Camp.h"
 #include "people.h"
+#include"BattleMapLogic.h"
 
 USING_NS_CC;
 
@@ -47,7 +48,13 @@ bool BattleScene1::init()
     }    auto visibleSize = Director::getInstance()->getVisibleSize();
     Vec2 origin = Director::getInstance()->getVisibleOrigin();
 
-
+    for (int x = 0; x < MAP_SIZE; x++)
+    {
+        for (int y = 0; y < MAP_SIZE; y++)
+        {
+            g_map[x][y] = TileState::EMPTY;
+        }
+    }
     // 地图精灵初始化
     auto mapSprite = Sprite::create("others/BattleMap1.png");
     if (mapSprite == nullptr)
@@ -78,31 +85,105 @@ bool BattleScene1::init()
     //townHall->setLevel(3);
     townHall->setTilePosition(mapSprite, 0.5, 1.5);
     mapSprite->addChild(townHall, 1);
-    townHall->drawDebugMapRange(mapSprite);
+    _buildings.push_back(townHall);  // <-- 添加这行
+    // 新增：标记建筑占据的格子为不可通行
+  // 假设建筑占据以(0.5,1.5)为中心的3x3区域
+    for (int dx = -3; dx <= 1; dx++) {
+        for (int dy = -3; dy <= 1; dy++) {
+            int tileX = static_cast<int>(1.5 + dx);
+            int tileY = static_cast<int>(2.5 + dy);
+            occupyTile(tileX, tileY);
+        }
+    }
+    //townHall->drawDebugMapRange(mapSprite);
 
     auto goldMine1 = GoldMine::create("Gold_Mine/Gold_Mine3.png", false, "mud.png");
     goldMine1->setTilePosition(mapSprite, -6, 4);
+    // 新增：标记建筑占据的格子为不可通行
+    for (int dx = -1; dx <= 1; dx++) {
+        for (int dy = -1; dy <= 1; dy++) {
+            int tileX = static_cast<int>(-6 + dx);
+            int tileY = static_cast<int>(4 + dy);
+            occupyTile(tileX, tileY);
+        }
+    }
     mapSprite->addChild(goldMine1, 1);
+    _buildings.push_back(goldMine1);
 
     auto goldMine2 = GoldMine::create("Gold_Mine/Gold_Mine3.png", false, "mud.png");
     goldMine2->setTilePosition(mapSprite, 7, 4);
+    // 新增：标记建筑占据的格子为不可通行
+    for (int dx = -1; dx <= 1; dx++) {
+        for (int dy = -1; dy <= 1; dy++) {
+            int tileX = static_cast<int>(7 + dx);
+            int tileY = static_cast<int>(4 + dy);
+            occupyTile(tileX, tileY);
+        }
+    }
     mapSprite->addChild(goldMine2, 1);
+    _buildings.push_back(goldMine2);
 
     auto ElixirStorage1 = ElixirStorage::create("Elixir_Storage/Elixir_Storage2.png", false, "mud.png");
     ElixirStorage1->setTilePosition(mapSprite, -6, 1);
+    // 新增：标记建筑占据的格子为不可通行
+  // 假设建筑占据以(0.5,1.5)为中心的3x3区域
+    for (int dx = -1; dx <= 1; dx++) {
+        for (int dy = -1; dy <= 1; dy++) {
+            int tileX = static_cast<int>(-6 + dx);
+            int tileY = static_cast<int>(1 + dy);
+            occupyTile(tileX, tileY);
+        }
+    }
     mapSprite->addChild(ElixirStorage1, 1);
+    _buildings.push_back(ElixirStorage1);
 
     auto ElixirStorage2 = ElixirStorage::create("Elixir_Storage/Elixir_Storage2.png", false, "mud.png");
     ElixirStorage2->setTilePosition(mapSprite, 7, 1);
+    // 新增：标记建筑占据的格子为不可通行
+  // 假设建筑占据以(0.5,1.5)为中心的3x3区域
+    for (int dx = -1; dx <= 1; dx++) {
+        for (int dy = -1; dy <= 1; dy++) {
+            int tileX = static_cast<int>(7 + dx);
+            int tileY = static_cast<int>(1 + dy);
+            occupyTile(tileX, tileY);
+        }
+    }
     mapSprite->addChild(ElixirStorage2, 1);
+    _buildings.push_back(ElixirStorage2);
 
     auto Cannon1 = Cannon::create("Cannon/Cannon2.png", false, "mud.png");
     Cannon1->setTilePosition(mapSprite, 0, -7);
+    // 新增：标记建筑占据的格子为不可通行
+  // 假设建筑占据以(0.5,1.5)为中心的3x3区域
+    for (int dx = -1; dx <= 1; dx++) {
+        for (int dy = -1; dy <= 1; dy++) {
+            int tileX = static_cast<int>(0 + dx);
+            int tileY = static_cast<int>(-7 + dy);
+            occupyTile(tileX, tileY);
+        }
+    }
     mapSprite->addChild(Cannon1, 1);
+    _buildings.push_back(Cannon1);
 
     auto Cannon2 = Cannon::create("Cannon/Cannon3.png", false, "mud.png");
     Cannon2->setTilePosition(mapSprite, 0, 9);
+    // 新增：标记建筑占据的格子为不可通行
+  // 假设建筑占据以(0.5,1.5)为中心的3x3区域
+    for (int dx = -1; dx <= 1; dx++) {
+        for (int dy = -1; dy <= 1; dy++) {
+            int tileX = static_cast<int>(0 + dx);
+            int tileY = static_cast<int>(9 + dy);
+            occupyTile(tileX, tileY);
+        }
+    }
     mapSprite->addChild(Cannon2, 1);
+    _buildings.push_back(Cannon2);
+
+    // 设置默认目标建筑（比如第一个建筑）
+    if (!_buildings.empty()) {
+        _targetBuilding = _buildings[0];
+        CCLOG("设置默认目标建筑：%p", _targetBuilding);
+    }
 
     // 初始化战斗状态为未开始
     _isBattleStarted = false;
@@ -115,6 +196,9 @@ bool BattleScene1::init()
     initSoldierSelector();
     // 新增：创建人口按钮
     createPopulationButton();
+    // 创建返回按钮（在适当位置添加这行调用）
+    createBackButton();
+
     initTouchListener();
 
 
@@ -128,8 +212,37 @@ bool BattleScene1::init()
 
     // 注册监听器 (处理滚轮和地图拖动)
     //_eventDispatcher->addEventListenerWithSceneGraphPriority(_mouseListener, this);
-
+    //visualizeBlockedTiles();
     return true;
+}
+
+/// /////////////////////
+Vec2 worldPosToTile(Sprite* mapSprite, const Vec2& worldPos) {
+    if (!mapSprite) return Vec2::ZERO;
+
+    // 将世界坐标转换为相对于地图节点的局部坐标
+    Vec2 localPos = mapSprite->convertToNodeSpace(worldPos);
+
+    // 假设每个格子大小为64像素（根据实际调整）
+    const float TILE_SIZE = 64.0f;
+
+    // 计算格子坐标（四舍五入）
+    float tileX = std::round(localPos.x / TILE_SIZE);
+    float tileY = std::round(localPos.y / TILE_SIZE);
+
+    return Vec2(tileX, tileY);
+}
+
+Vec2 tileToWorldPos(Sprite* mapSprite, const Vec2& tilePos) {
+    if (!mapSprite) return Vec2::ZERO;
+
+    const float TILE_SIZE = 64.0f;
+
+    // 计算局部坐标
+    Vec2 localPos(tilePos.x * TILE_SIZE, tilePos.y * TILE_SIZE);
+
+    // 将局部坐标转换为世界坐标
+    return mapSprite->convertToWorldSpace(localPos);
 }
 
 void BattleScene1::menuCloseCallback(Ref* pSender)
@@ -534,11 +647,11 @@ void BattleScene1::initTouchListener() {
 }
 
 // 整合后的士兵创建函数（包含等级设置和原有逻辑）
-void BattleScene1::spawnSoldier(Soldier::Type type, Vec2 pos) {
-    auto soldier = Soldier::create(type, pos, 1.0f);
+void BattleScene1::spawnSoldier(Soldier::Type type, Vec2 worldPos) {
+    auto soldier = Soldier::create(type, worldPos, 1.0f);
     if (!soldier) return;
 
-    // 设置士兵等级（核心新增逻辑）
+    // 设置士兵等级和绑定场景
     soldier->setLevel(getTempSoldierLevel(type));
     soldier->bindScene(this);
     this->addChild(soldier, 1);
@@ -546,20 +659,62 @@ void BattleScene1::spawnSoldier(Soldier::Type type, Vec2 pos) {
     // 标记战斗已开始
     _isBattleStarted = true;
 
-    // 保留原有移动和队列逻辑
-    float distance = pos.distance(_attackTargetPos);
-    float duration = distance / SOLDIER_SPEED;
-    soldier->moveToTarget(_attackTargetPos, duration);
+    // ========== 关键修复：使用你的现有函数设置士兵的_tilePos ==========
+    auto mapSprite = dynamic_cast<Sprite*>(getChildByTag(CAMP_SPRITE_TAG));
+    if (mapSprite) {
+        // 将世界坐标转换为地图局部坐标
+        Vec2 mapLocal = mapSprite->convertToNodeSpace(worldPos);
 
-    soldier->onReachTarget = [this](Soldier* s) {
-        // 先判断是否在攻击范围内
-        if (isInAttackRange(s)) {
-            addToAttackQueue(s); // 加入攻击队列
-        }
-        else {
-            CCLOG("士兵未进入攻击范围，不加入攻击队列");
-        }
-        };
+        // 使用你的mapLocalToTile函数转换为格子坐标
+        Vec2 startTile = mapLocalToTile(mapSprite, mapLocal, false); // false表示不是HomeTown
+
+        // 设置士兵的格子位置
+        soldier->setTilePosition(startTile);
+
+        // 同时设置士兵的初始世界位置（直接使用传入的worldPos）
+        soldier->setPosition(worldPos);
+
+        CCLOG("士兵初始位置：世界(%.1f,%.1f) -> 地图局部(%.1f,%.1f) -> 格子(%.1f,%.1f)",
+            worldPos.x, worldPos.y, mapLocal.x, mapLocal.y, startTile.x, startTile.y);
+    }
+    else {
+        CCLOG("错误：无法获取地图节点！");
+    }
+
+    // ========== 让士兵朝建筑移动 ==========
+    if (_targetBuilding) {
+        CCLOG("士兵朝目标建筑移动");
+
+        // 设置到达目标时的回调
+        soldier->onReachTarget = [this](Soldier* s) {
+            CCLOG("士兵到达目标位置");
+
+            // 判断是否进入攻击范围
+            if (isInAttackRange(s)) {
+                CCLOG("士兵进入攻击范围，加入攻击队列");
+                addToAttackQueue(s);
+            }
+            else {
+                CCLOG("士兵未进入攻击范围");
+            }
+            };
+
+        // 让士兵朝建筑移动（使用A*寻路）
+        soldier->moveToBuilding(_targetBuilding);
+    }
+    else {
+        // 如果没有目标建筑，使用原来的逻辑：移动到攻击点
+        CCLOG("没有目标建筑，使用原攻击点移动逻辑");
+        float distance = worldPos.distance(_attackTargetPos);
+        float duration = distance / SOLDIER_SPEED;
+        soldier->moveToTarget(_attackTargetPos, duration);
+
+        soldier->onReachTarget = [this](Soldier* s) {
+            if (isInAttackRange(s)) {
+                addToAttackQueue(s);
+            }
+            };
+    }
 
     // 更新计数
     _soldierReleaseCounts[type]++;
@@ -613,8 +768,26 @@ void BattleScene1::updateCountLabel(Soldier::Type type) {
 
 // 判断士兵是否进入攻击范围
 bool BattleScene1::isInAttackRange(Soldier* soldier) {
-    float distance = soldier->getPosition().distance(_attackTargetPos);
-    return distance <= _attackRange;
+    if (!soldier) return false;
+
+    // 如果有目标建筑，使用建筑的攻击范围
+    if (_targetBuilding) {
+        // 方法1：检查士兵是否在建筑的攻击范围内
+        // 可以根据需要实现不同的判断逻辑
+
+        // 方法2：使用原有逻辑，但目标点设为建筑位置
+        Vec2 attackCenter = _targetBuilding->getPosition();
+        float distance = soldier->getPosition().distance(attackCenter);
+
+        // 使用建筑的攻击范围或固定范围
+        float buildingRange = _attackRange; // 可以改为建筑的特定范围
+        return distance <= buildingRange;
+    }
+    else {
+        // 如果没有目标建筑，使用原有逻辑
+        float distance = soldier->getPosition().distance(_attackTargetPos);
+        return distance <= _attackRange;
+    }
 }
 
 // 士兵进入范围后加入攻击队列
@@ -697,4 +870,93 @@ void BattleScene1::onEnter() {
     // 每次进入场景时重新加载人口分配数据
     loadMaxReleaseCountsFromPopulationManager();
     CCLOG("战斗场景进入，重新加载人口分配");
+}
+
+// 新增：创建返回按钮的实现
+void BattleScene1::createBackButton()
+{
+    auto visibleSize = Director::getInstance()->getVisibleSize();
+    Vec2 origin = Director::getInstance()->getVisibleOrigin();
+
+    // 创建返回按钮 - 使用战斗按钮的图片或自定义图片
+    _backButton = Button::create("back.png", "", "");
+    if (_backButton) {
+        _backButton->setScale(0.3f);  // 根据需要调整缩放
+        _backButton->setPosition(Vec2(origin.x + visibleSize.width * 0.95f,
+            origin.y + visibleSize.height * 0.9f));  // 右上角位置
+
+        // 添加点击事件：返回大本营场景
+        _backButton->addClickEventListener(CC_CALLBACK_1(BattleScene1::backToCampCallback, this));
+
+        // 添加返回文字标签（可选）
+        auto backLabel = Label::createWithTTF("返回", "fonts/arial.ttf", 20);
+        backLabel->setPosition(Vec2(_backButton->getContentSize().width / 2,
+            -_backButton->getContentSize().height / 2 - 10));
+        _backButton->addChild(backLabel);
+
+        this->addChild(_backButton, 1000);  // 较高的层级确保按钮可见
+    }
+    else {
+        // 如果图片加载失败，创建一个简单的按钮
+        _backButton = Button::create();
+        _backButton->setTitleText("返回营地");
+        _backButton->setTitleFontSize(20);
+        _backButton->setPosition(Vec2(origin.x + visibleSize.width - 80,
+            origin.y + visibleSize.height - 50));
+        _backButton->addClickEventListener(CC_CALLBACK_1(BattleScene1::backToCampCallback, this));
+        this->addChild(_backButton, 1000);
+    }
+}
+
+// 新增：返回按钮的回调函数
+void BattleScene1::backToCampCallback(cocos2d::Ref* pSender)
+{
+    // 切换到营地场景
+    auto campScene = Camp::createScene();
+
+    Director::getInstance()->popScene();
+
+    // 如果你想使用过渡效果，可以使用以下方式：
+    // Director::getInstance()->replaceScene(TransitionFade::create(0.5f, campScene));
+
+    CCLOG("从战斗场景返回到大本营场景");
+}
+
+void BattleScene1::visualizeBlockedTiles() {
+    auto mapSprite = dynamic_cast<Sprite*>(getChildByTag(CAMP_SPRITE_TAG));
+    if (!mapSprite) return;
+
+    // 清除之前的标记
+    auto debugLayer = this->getChildByName("DebugLayer");
+    if (debugLayer) debugLayer->removeFromParent();
+
+    // 创建新的调试层
+    debugLayer = LayerColor::create(Color4B(0, 0, 0, 0));
+    debugLayer->setName("DebugLayer");
+    this->addChild(debugLayer, 9999);
+
+    // 显示所有阻挡格子
+    for (int x = -BATTLE_MAP_HALF; x < BATTLE_MAP_HALF; x++) {
+        for (int y = -BATTLE_MAP_HALF; y < BATTLE_MAP_HALF; y++) {
+            if (!isWalkable(x, y)) {
+                // 将格子坐标转换为地图局部坐标
+                Vec2 mapLocal = tileToMapLocal(mapSprite, x, y, false);
+
+                // 将地图局部坐标转换为世界坐标
+                Vec2 worldPos = mapSprite->convertToWorldSpace(mapLocal);
+
+                // 创建红色方块标记阻挡
+                auto marker = Sprite::create();
+                marker->setTextureRect(Rect(0, 0, BATTLE_MAP_TILE_W, BATTLE_MAP_TILE_H));
+                marker->setColor(Color3B(255, 0, 0));
+                marker->setOpacity(100);
+                marker->setPosition(worldPos);
+                debugLayer->addChild(marker);
+
+                CCLOG("阻挡格子(%d,%d) -> 地图局部(%.0f,%.0f) -> 世界坐标(%.0f,%.0f)",
+                    x, y, mapLocal.x, mapLocal.y, worldPos.x, worldPos.y);
+            }
+        }
+    }
+    CCLOG("=== 可视化阻挡格子完成 ===");
 }

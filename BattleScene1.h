@@ -7,12 +7,24 @@
 #include "Soldier.h"
 #include <queue>
 #include <unordered_map>
+#include "Camp.h" // 添加这行：包含Camp场景的头文件
 USING_NS_CC;
 using namespace ui;
 
 
 class BattleScene1 : public cocos2d::Scene
 {
+private:
+    std::vector<Building*> _buildings;  // 存储所有建筑
+    Building* _targetBuilding = nullptr; // 目标建筑（可以改为多个目标）
+
+public:
+    void visualizeBlockedTiles();
+    // 添加这些公共方法
+    void setTargetBuilding(Building* building) { _targetBuilding = building; }
+    Building* getTargetBuilding() const { return _targetBuilding; }
+    const std::vector<Building*>& getAllBuildings() const { return _buildings; }
+
 public:
     static cocos2d::Scene* createScene();
     virtual bool init();
@@ -50,6 +62,15 @@ public:
     bool isInAttackRange(Soldier* soldier); // 判断是否进入攻击范围
     
 private:
+    // 新增：返回按钮
+    cocos2d::ui::Button* _backButton = nullptr;
+
+    // 新增：返回按钮创建方法
+    void createBackButton();
+
+    // 新增：返回按钮回调函数
+    void backToCampCallback(cocos2d::Ref* pSender);
+
     // --- 场景内部变量 ---
 
     // 使用基类指针存储建筑对象

@@ -1,11 +1,12 @@
 #include "Building.h"
 #include"BuildingActionBar.h"
-#include"MapTools.h"
 #include"Camp.h"
 #include"BattleScene1.h"
+#include "BattleMapLogic.h"
+#include<vector>
 USING_NS_CC;
 const float LABEL_OFFSET_Y = 20.0f;  // 标签在建筑上方的偏移量
-const float LABEL_FONT_SIZE = 45.0f; // 字体大小
+const float LABEL_FONT_SIZE = 20.0f; // 字体大小
 
 
 Building::Building() :
@@ -264,13 +265,13 @@ void Building::drawDebugMapRange(Node* mapNode)
 
             pos += mapCenter; // 平移到 map 中心
 
-            debugNode->drawDot(pos, 3.0f, Color4F(0, 1, 0, 1)); // 亮绿色
+            debugNode->drawDot(pos, 2.0f, Color4F(0, 1, 0, 1)); // 亮绿色
 
         }
     }
 
     // 中心点
-    debugNode->drawDot(mapCenter, 3.0f, Color4F::RED);
+    debugNode->drawDot(mapCenter, 2.0f, Color4F::RED);
 }
 
 
@@ -534,6 +535,7 @@ void Building::setSelected(bool selected)
                 _actionBar->setVisible(false);
                 auto scene = Director::getInstance()->getRunningScene();
                 scene->addChild(_actionBar, 1000);
+                
             }
             // 设置回调（使用lambda捕获this）
             _actionBar->setCallbacks(
@@ -659,4 +661,36 @@ void Building::playUpgradeEffect()
     }
 }
 
+///////////////////////////
+void Building::occupyTiles(float tileX, float tileY)
+{
+    _tileX = tileX;
+    _tileY = tileY;
 
+    int startX = tileX - _size / 2;
+    int startY = tileY - _size / 2;
+
+    for (int x = 0; x < _size; x++)
+        for (int y = 0; y < _size; y++)
+            occupyTile(startX + x, startY + y);
+}
+
+std::vector<cocos2d::Vec2> Building::getAttackTiles()
+{
+    std::vector<cocos2d::Vec2> result;
+
+    int left = _tileX - _size / 2;
+    int right = _tileX + _size / 2;
+    int bottom = _tileY - _size / 2;
+    int top = _tileY + _size / 2;
+
+    for (int x = left - 1; x <= right + 1; x++)
+    {
+        for (int y = bottom - 1; y <= top + 1; y++)
+        {
+            if (isWalkable(x, y))
+                result.push_back(Vec2(x, y));
+        }
+    }
+    return result;
+}
