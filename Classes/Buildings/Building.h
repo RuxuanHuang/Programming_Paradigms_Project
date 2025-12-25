@@ -4,7 +4,7 @@
 #include "cocos2d.h"
 #include "ui/CocosGUI.h"
 #include"BuildingActionBar.h"
-
+#include<vector>
 struct levelInformation {
 	int _hp;
 	int _upgradeCost;
@@ -14,6 +14,14 @@ struct levelInformation {
 USING_NS_CC;
 class Building : public Node
 {
+public:
+    void occupyTiles(float tileX, float tileY);
+    std::vector<cocos2d::Vec2> getAttackTiles();
+
+private:
+    int _tileX;
+    int _tileY;
+
 public:
 	static Building* create(const std::string& buildingFile,
         bool isHownTown = true,
@@ -109,9 +117,9 @@ protected:
     float _diamondWidthRatio;
     float _diamondHeightRatio;
     int _size;
-    void onBuildingMouseDown(cocos2d::Event* event);
-    void onBuildingMouseUp(cocos2d::Event* event);
-    void onBuildingMouseMove(cocos2d::Event* event);
+    virtual void onBuildingMouseDown(cocos2d::Event* event);
+    virtual void onBuildingMouseUp(cocos2d::Event* event);
+    virtual void onBuildingMouseMove(cocos2d::Event* event);
     void setupBuildingOnTurf();
 
     
