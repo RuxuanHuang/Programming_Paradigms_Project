@@ -18,7 +18,7 @@ public:
         _tilePos = tilePos;
         CCLOG("士兵设置格子位置: (%.1f, %.1f)", _tilePos.x, _tilePos.y);
     }
-
+    //获得血量
 private:
     cocos2d::Vec2 _tilePos;
 
@@ -56,7 +56,9 @@ public:
     }
     State getState() const { return _state; }
     void setState(State state) { _state = state; }
-    bool isAlive() const { return _state != State::DEAD; } // 存活判断
+    bool isAlive() const { 
+        return (_currentHP > 0) && (_state != State::DEAD);
+    } // 存活判断
 
     // 新增：受击相关方法
     void startTakeDamagePerSecond(float damagePerSec); // 开始每秒扣血
@@ -111,8 +113,10 @@ protected:
     void initHPBar();
     // 更新血条百分比
     void updateHPBar();
+public:
     void reduceHP(float damage);
-
+    void Soldier::onTargetDestroyed();
+protected:
     State _state = State::MOVING; // 初始状态：移动中
     float _damagePerSec = 0.0f;   // 每秒受击伤害值
 
@@ -146,6 +150,13 @@ protected:
     virtual void updateAttributesByLevel() = 0;
     // 死亡回调（可扩展死亡动画/销毁逻辑）
     void onDeath();
+
+    public:
+        void startAttacking(Building* target);
+        void stopAttacking();
+        void performAttack(float dt); // 定时触发伤害
+    protected:
+        Building* _attackTarget = nullptr;
 };
 
 #endif // __SOLDIER_H__

@@ -2,7 +2,7 @@
 #define __ARCHERTOWER_H__
 
 #include "Building.h"
-
+class Soldier;
 class ArcherTower : public Building
 {
 public:
@@ -15,15 +15,18 @@ public:
     ArcherTower() = default;
     ~ArcherTower() = default;
     virtual void upgrade() override;
-
-
+    void ArcherTower::scanForTargets(float dt);
+    void ArcherTower::startCombatAI();
 protected:
     virtual bool init(const std::string& buildingFile,
         const std::string turfFile,
         float buildingScale) override;
 private:
-    int _attackingPerHour;
-    std::vector<int>attackingPerHourList;
+    int _attackingPerSecond;
+    float _attackingRange;
+    std::vector<int>attackingPerSecondList;
+private:
+    Soldier* _currentTarget = nullptr; // 记录当前锁定的目标
 
 };
 

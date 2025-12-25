@@ -148,8 +148,20 @@ void Soldier::stopTakeDamage() {
 // 修改 reduceHP 函数
 void Soldier::reduceHP(float damage) {
     if (!isAlive()) return;
-    _currentHP = std::max(0.0f, _currentHP - damage);
+
+    _currentHP -= damage;
+    if (_currentHP <= 0) {
+        _currentHP = 0;
+        _state = State::DEAD; // 1. 立即改变状态
+        this->onDeath();       // 2. 触发死亡逻辑（如停止动画、销毁）
+        return;
+    }
     updateHPBar();
+    // --- 新增：切换到受击状态 ---
+    if (_currentHP > 0 && _state != State::DEAD) {
+        this->setState(State::UNDER_ATTACK);
+        this->setHPBarVisible(true); // 被打时确保血条显示
+    }
     if (_currentHP <= 0) {
         setState(State::DEAD);
         onDeath(); // 添加死亡回调
@@ -333,4 +345,44 @@ void Soldier::moveToBuilding(Building* target) {
 
     // 执行动作序列
     runAction(Sequence::create(actions));
+}
+void Soldier::startAttacking(Building* target) {
+    if (!target || _attackTarget == target) return;
+
+    _attackTarget = target;
+    // 开启定时器，每秒攻击一次
+    this->schedule(CC_SCHEDULE_SELECTOR(Soldier::performAttack), 1.0f);
+}
+
+void Soldier::performAttack(float dt) {
+    // 核心条件：只有活着、目标存在、且状态是等待/站定时才攻击
+    if (this->isAlive() && _attackTarget && _attackTarget->isAlive()) {
+        if (_state == State::WAITING || _state == State::UNDER_ATTACK) {
+
+            _attackTarget->reduceHP(_attack);
+
+            // 攻击动作视觉反馈：士兵跳一下
+            auto jump = JumpBy::create(0.2f, Vec2::ZERO, 10, 1);
+            this->runAction(jump);
+
+        }
+    }
+    else {
+        this->stopAttacking();
+        this->onTargetDestroyed(); // 触发目标毁灭后的后续逻辑
+    }
+}
+
+void Soldier::stopAttacking() {
+    _attackTarget = nullptr;
+    this->unschedule(CC_SCHEDULE_SELECTOR(Soldier::performAttack));
+}
+void Soldier::onTargetDestroyed() {
+    _attackTarget = nullptr;
+
+    if (this->isAlive()) {
+        CCLOG("目标已摧毁，士兵重新寻找路径或继续前进");
+        // 将状态切回 MOVING，以便触发后续的寻路或移动逻辑
+        this->setState(State::MOVING);
+    }
 }

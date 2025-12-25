@@ -1,8 +1,9 @@
 #include "Building.h"
 #include"BuildingActionBar.h"
-#include"MapTools.h"
 #include"Camp.h"
 #include"BattleScene1.h"
+#include "BattleMapLogic.h"
+#include<vector>
 USING_NS_CC;
 const float LABEL_OFFSET_Y = 20.0f;  // 标签在建筑上方的偏移量
 const float LABEL_FONT_SIZE = 20.0f; // 字体大小
@@ -24,7 +25,6 @@ Building::Building() :
     _HP(0),
     _cost(0),
     _maxLevel(3)
-
 {
 }
 
@@ -83,8 +83,8 @@ bool Building::init(const std::string& buildingFile,
 
     _eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);
 
-
-
+    //血条
+    this->initHPBar(false);
 
     return true;
 }
@@ -608,6 +608,11 @@ void Building::upgrade()
     if (_isSelected && _infoLabel) {
         updateInfoLabel();
     }
+    // 假设升级后最大血量变化
+    _HP = _upgradeSprites[_level]._hp;
+    _currentHP = _HP; // 升级通常回复满血
+
+    updateHPBar();
 
     // 播放升级特效
     playUpgradeEffect();
@@ -660,4 +665,111 @@ void Building::playUpgradeEffect()
     }
 }
 
+///////////////////////////
+void Building::occupyTiles(float tileX, float tileY)
+{
+    _tileX = tileX;
+    _tileY = tileY;
 
+    int startX = tileX - _size / 2;
+    int startY = tileY - _size / 2;
+
+    for (int x = 0; x < _size; x++)
+        for (int y = 0; y < _size; y++)
+            occupyTile(startX + x, startY + y);
+}
+
+std::vector<cocos2d::Vec2> Building::getAttackTiles()
+{
+    std::vector<cocos2d::Vec2> result;
+
+    int left = _tileX - _size / 2;
+    int right = _tileX + _size / 2;
+    int bottom = _tileY - _size / 2;
+    int top = _tileY + _size / 2;
+
+    for (int x = left - 1; x <= right + 1; x++)
+    {
+        for (int y = bottom - 1; y <= top + 1; y++)
+        {
+            if (isWalkable(x, y))
+                result.push_back(Vec2(x, y));
+        }
+    }
+    return result;
+}
+//血条
+void Building::initHPBar(bool immediateShow) {
+    if (_hpBar) return;
+
+    _currentHP = _HP; // 初始血量
+    if (immediateShow) {
+        // 1. 创建背景
+        _hpBarBg = Sprite::create();
+        _hpBarBg->setColor(Color3B(80, 80, 80));
+        _hpBarBg->setTextureRect(Rect(0, 0, 64, 10));
+        _hpBarBg->setAnchorPoint(Vec2(0.5f, 0.5f));
+
+        // 2. 创建 LoadingBar
+        _hpBar = ui::LoadingBar::create();
+        _hpBar->loadTexture("hp_red.png");
+        _hpBar->ignoreContentAdaptWithSize(false);
+        _hpBar->setContentSize(Size(60, 8));
+        _hpBar->setPercent(100);
+        _hpBar->setDirection(ui::LoadingBar::Direction::LEFT);
+        _hpBar->setAnchorPoint(Vec2(0.5f, 0.5f));
+
+        // 3. 计算位置（在建筑上方）
+        float barY = _turf ? (_turf->getContentSize().height * _turf->getScaleY() / 2 + 15) : 40.0f;
+        Vec2 barPos = Vec2(0, barY);
+
+        _hpBarBg->setPosition(barPos);
+        _hpBar->setPosition(barPos);
+
+        this->addChild(_hpBarBg, 98);
+        this->addChild(_hpBar, 99);
+    }
+}
+void Building::updateHPBar() {
+    if (!_hpBar || _HP <= 0) return;
+
+    // 计算百分比
+    float percent = ((float)_currentHP / (float)_HP) * 100.0f;
+    _hpBar->setPercent(std::max(0.0f, percent));
+
+}
+void Building::reduceHP(float damage) {
+    if (!isAlive()) return;
+    _currentHP -= damage;
+    if (_currentHP < 0) _currentHP = 0;
+    this->updateHPBar();
+    if (_currentHP <= 0) {
+        _currentHP = 0;
+        // 建筑摧毁逻辑
+        CCLOG("建筑 %s 已被摧毁！", _buildingName.c_str());
+        // this->removeFromParent(); // 暂时注释，避免崩溃，可改为变灰
+        this->onDestroyed();
+    }
+}
+void Building::onDestroyed() {
+    CCLOG("建筑 %s 已被摧毁！", _buildingName.c_str());
+
+    // 1. 视觉效果：比如变灰、冒烟或者播放爆炸动画
+    this->setColor(Color3B::GRAY);
+
+    // 2. 移除血条
+    if (_hpBar) _hpBar->setVisible(false);
+
+    // 3. 从物理层或逻辑层移除（根据你的需求，如果不删除节点，至少要标记为不可攻击）
+    // 如果是大本营死亡，可能触发游戏结束逻辑
+    if (_buildingName == "TownHall") {
+        // 可以在这里通知场景游戏结束
+    }
+
+    // 建议延迟一点时间再真正移除，或者留着残骸
+    this->runAction(Sequence::create(
+        FadeOut::create(2.0f),
+        RemoveSelf::create(),
+        nullptr
+    ));
+}

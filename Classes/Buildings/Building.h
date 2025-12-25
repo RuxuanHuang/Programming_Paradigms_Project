@@ -92,8 +92,9 @@ public:
     void setMaxLevel(int l){
         _maxLevel = l;
     }
-
-
+    //血条
+    void initHPBar(bool immediateShow);
+    void updateHPBar();
 protected:
     Vec2 _dragStartPos;
 
@@ -117,9 +118,9 @@ protected:
     float _diamondWidthRatio;
     float _diamondHeightRatio;
     int _size;
-    virtual void onBuildingMouseDown(cocos2d::Event* event);
-    virtual void onBuildingMouseUp(cocos2d::Event* event);
-    virtual void onBuildingMouseMove(cocos2d::Event* event);
+    void onBuildingMouseDown(cocos2d::Event* event);
+    void onBuildingMouseUp(cocos2d::Event* event);
+    void onBuildingMouseMove(cocos2d::Event* event);
     void setupBuildingOnTurf();
 
     
@@ -138,10 +139,22 @@ protected:
  
     std::unordered_map<int, levelInformation> _upgradeSprites;  // 等级->图片映射
     void changeBuildingSprite(const std::string& newSpriteFile);  // 更换建筑精灵
+  //血条
+    cocos2d::ui::LoadingBar* _hpBar = nullptr;
+    cocos2d::Sprite* _hpBarBg = nullptr;
+    int _currentHP; // 当前血量
+    bool _showHPBar = false; // 是否显示血条的控制变量
+    // 血条尺寸常量
+    const float HP_BAR_WIDTH = 60.0f;
+    const float HP_BAR_HEIGHT = 8.0f;
+public:
+    void reduceHP(float damage);
+    bool isAlive() const { return _currentHP > 0; }
 public:
     BuildingActionBar* _actionBar = nullptr;
 	void setIsHownTown(bool isHownTown) { _isHownTown = isHownTown; }
 	bool getIsHownTown() { return _isHownTown; }
+    void Building::onDestroyed();
 protected:
     int _maxLevel;
     bool _isHownTown= true;
