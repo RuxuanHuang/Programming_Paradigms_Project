@@ -6,11 +6,11 @@ bool Store::init() {
         return false;
     }
 
-    // èŽ·å–å¯è§åŒºåŸŸå¤§å°
+    // »ñÈ¡¿É¼ûÇøÓò´óÐ¡
     auto visibleSize = Director::getInstance()->getVisibleSize();
     Vec2 origin = Director::getInstance()->getVisibleOrigin();
 
-    // åˆ›å»ºèƒŒæ™¯
+    // ´´½¨±³¾°
     auto background = Sprite::create("shop.png");
     if (background != nullptr) {
         background->setScaleX(visibleSize.width / background->getContentSize().width);
@@ -25,7 +25,7 @@ bool Store::init() {
         this->addChild(fallbackBackground, -1);
     }
 
-    // åˆå§‹åŒ–å¡ç‰‡æ•°æ®
+    // ³õÊ¼»¯¿¨Æ¬Êý¾Ý
     initCardData();
     createUI();
 
@@ -34,17 +34,17 @@ bool Store::init() {
 }
 
 void Store::initCardData() {
-    // åˆå§‹åŒ–8ç§å»ºç­‘å¡ç‰‡æ•°æ®
+    // ³õÊ¼»¯8ÖÖ½¨Öþ¿¨Æ¬Êý¾Ý
 
     cardDataList = {
         {"Cannon", "StoreCards/CannonCard.png", 250,"Gold" ,false},
         {"Archer Tower", "StoreCards/ArcherTowerCard.png", 1000,"Gold" ,false},
         {"Wall", "StoreCards/WallCard.png", 0, "Gold",false},
-        {"Army Camp", "StoreCards/ArmyCampCard.png", 200,"Elixir", false},
-        {"Gold Mine", "StoreCards/GoldMineCard.png", 150,"Elixir", false},
-        {"Elixir Collector", "StoreCards/ElixirCollectorCard.png", 150,"Gold", false},
-        {"Gold Storage", "StoreCards/GoldStorageCard.png", 300, "Elixir",false},
-        {"Elixir Storage", "StoreCards/ElixirStorageCard.png", 300,"Elixir", false}
+		{"Army Camp", "StoreCards/ArmyCampCard.png", 200,"Elixir", false},
+		{"Gold Mine", "StoreCards/GoldMineCard.png", 150,"Elixir", false},
+		{"Elixir Collector", "StoreCards/ElixirCollectorCard.png", 150,"Gold", false},
+		{"Gold Storage", "StoreCards/GoldStorageCard.png", 300, "Elixir",false},
+		{"Elixir Storage", "StoreCards/ElixirStorageCard.png", 300,"Elixir", false}
     };
 }
 
@@ -52,10 +52,10 @@ void Store::createResourceDisplay() {
     auto visibleSize = Director::getInstance()->getVisibleSize();
     Vec2 origin = Director::getInstance()->getVisibleOrigin();
 
-    // ä¸­é—´åå·¦ä¸‹çš„ä½ç½®ï¼ˆå±å¹•å·¦ä¸‹è§’å¾€ä¸Š190ï¼Œå¾€å³300çš„ä½ç½®ï¼‰
+    // ÖÐ¼äÆ«×óÏÂµÄÎ»ÖÃ£¨ÆÁÄ»×óÏÂ½ÇÍùÉÏ190£¬ÍùÓÒ300µÄÎ»ÖÃ£©
     Vec2 basePosition = Vec2(origin.x + 300, origin.y + 190);
 
-    // èŽ·å–èµ„æºç®¡ç†å™¨å®žä¾‹
+    // »ñÈ¡×ÊÔ´¹ÜÀíÆ÷ÊµÀý
     auto resourceManager = ResourceManager::getInstance();
 
 
@@ -66,25 +66,25 @@ void Store::createResourceDisplay() {
 
 
     elixirLabel = Label::createWithTTF("0", "fonts/arial.ttf", 28);
-    elixirLabel->setPosition(Vec2(basePosition.x + 300, basePosition.y));
+    elixirLabel->setPosition(Vec2(basePosition.x + 300, basePosition.y ));
     elixirLabel->setTextColor(Color4B::MAGENTA);
     this->addChild(elixirLabel);
 
-    // åˆå§‹æ›´æ–°èµ„æºæ˜¾ç¤º
+    // ³õÊ¼¸üÐÂ×ÊÔ´ÏÔÊ¾
     updateResourceDisplay();
 
-
+    
 }
 
 
 void Store::updateResourceDisplay() {
     auto resourceManager = ResourceManager::getInstance();
 
-    // æ›´æ–°é‡‘å¸æ˜¾ç¤º
+    // ¸üÐÂ½ð±ÒÏÔÊ¾
     int goldAmount = resourceManager->getGoldAmount();
     goldLabel->setString(std::to_string(goldAmount));
 
-    // æ›´æ–°åœ£æ°´æ˜¾ç¤º
+    // ¸üÐÂÊ¥Ë®ÏÔÊ¾
     int elixirAmount = resourceManager->getElixirAmount();
     elixirLabel->setString(std::to_string(elixirAmount));
 }
@@ -96,7 +96,7 @@ void Store::createUI() {
     Vec2 origin = Director::getInstance()->getVisibleOrigin();
 
 
-    // åˆ›å»ºè¿”å›žæŒ‰é’®
+    // ´´½¨·µ»Ø°´Å¥
     auto backButton = ui::Button::create("back.png", "", "");
 
     backButton->setPosition(Vec2(visibleSize.width - 60, visibleSize.height - 60));
@@ -109,7 +109,7 @@ void Store::createUI() {
         });
     this->addChild(backButton, 1);
 
-    // åˆ›å»ºå¡ç‰‡ç½‘æ ¼å¸ƒå±€
+    // ´´½¨¿¨Æ¬Íø¸ñ²¼¾Ö
     int cardsPerRow = 4;
     float cardWidth = 280;
     float cardHeight = 240;
@@ -132,17 +132,17 @@ void Store::createUI() {
 
 
 void Store::createCard(const StoreCardData& data, Vec2 position) {
-    // åˆ›å»ºå¡ç‰‡å›¾æ ‡
+    // ´´½¨¿¨Æ¬Í¼±ê
     auto cardIcon = Sprite::create(data.iconPath);
     cardIcon->setPosition(Vec2(position.x, position.y + 50));
     cardIcon->setScale(0.48f);
 
-    // æ·»åŠ è§¦æ‘¸äº‹ä»¶ç›‘å¬å™¨
+    // Ìí¼Ó´¥ÃþÊÂ¼þ¼àÌýÆ÷
     auto touchListener = EventListenerTouchOneByOne::create();
     touchListener->setSwallowTouches(true);
     touchListener->onTouchBegan = [cardIcon, this, data](Touch* touch, Event* event) -> bool {
         if (cardIcon->getBoundingBox().containsPoint(touch->getLocation())) {
-            // è§¦æ‘¸å¼€å§‹æ—¶ç¼©å°ä¸€ç‚¹ï¼Œæä¾›åé¦ˆ
+            // ´¥Ãþ¿ªÊ¼Ê±ËõÐ¡Ò»µã£¬Ìá¹©·´À¡
             cardIcon->runAction(ScaleTo::create(0.1f, 0.45f));
             return true;
         }
@@ -150,10 +150,10 @@ void Store::createCard(const StoreCardData& data, Vec2 position) {
         };
 
     touchListener->onTouchEnded = [cardIcon, this, data](Touch* touch, Event* event) {
-        // æ¢å¤å¤§å°
+        // »Ö¸´´óÐ¡
         cardIcon->runAction(ScaleTo::create(0.1f, 0.48f));
 
-        // æ£€æŸ¥æ˜¯å¦åœ¨å¡ç‰‡åŒºåŸŸå†…é‡Šæ”¾
+        // ¼ì²éÊÇ·ñÔÚ¿¨Æ¬ÇøÓòÄÚÊÍ·Å
         if (cardIcon->getBoundingBox().containsPoint(touch->getLocation())) {
             AudioEngine::play2d("click.mp3", false, 0.8f);
             this->onCardClicked(data);
@@ -167,22 +167,28 @@ void Store::createCard(const StoreCardData& data, Vec2 position) {
 }
 
 void Store::onCardClicked(const StoreCardData& data) {
-    // æ’­æ”¾è´­ä¹°éŸ³æ•ˆ
+    // ²¥·Å¹ºÂòÒôÐ§
     AudioEngine::play2d("click.mp3", false, 0.8f);
 
-    // èŽ·å–èµ„æºç®¡ç†å™¨
+    // »ñÈ¡×ÊÔ´¹ÜÀíÆ÷
     auto resourceManager = ResourceManager::getInstance();
     bool purchaseSuccess = false;
 
-    // æ ¹æ®è´§å¸ç±»åž‹è¿›è¡Œè´­ä¹°åˆ¤æ–­
-    if (data.costType == "Gold") {
-        // æ£€æŸ¥é‡‘å¸æ˜¯å¦è¶³å¤Ÿ
+    // ¸ù¾Ý»õ±ÒÀàÐÍ½øÐÐ¹ºÂòÅÐ¶Ï
+    if (data.price == 0) {
+        // Ãâ·ÑÎïÆ·
+        purchaseSuccess = true;
+        CCLOG("Acquired free item: %s", data.cardName.c_str());
+        showPurchaseMessage("Item Acquired!", Color4B::GREEN);
+    }
+    else if (data.costType == "Gold") {
+        // ¼ì²é½ð±ÒÊÇ·ñ×ã¹»
         if (resourceManager->canAffordGold(data.price)) {
-            // å°è¯•è´­ä¹°
+            // ³¢ÊÔ¹ºÂò
             purchaseSuccess = resourceManager->makeGoldPurchase(data.price);
             if (purchaseSuccess) {
                 CCLOG("Purchased %s for %d gold", data.cardName.c_str(), data.price);
-                // æ˜¾ç¤ºè´­ä¹°æˆåŠŸæç¤º
+                // ÏÔÊ¾¹ºÂò³É¹¦ÌáÊ¾
                 showPurchaseMessage("Purchase Successful!", Color4B::GREEN);
             }
             else {
@@ -191,17 +197,17 @@ void Store::onCardClicked(const StoreCardData& data) {
             }
         }
         else {
-            // é‡‘å¸ä¸è¶³
+            // ½ð±Ò²»×ã
             showPurchaseMessage("Not Enough Gold!", Color4B::RED);
             CCLOG("Not enough gold to purchase %s. Need: %d, Have: %d",
                 data.cardName.c_str(), data.price, resourceManager->getGoldAmount());
-            return; // èµ„æºä¸è¶³ï¼Œä¸ç»§ç»­æ‰§è¡Œ
+            return; // ×ÊÔ´²»×ã£¬²»¼ÌÐøÖ´ÐÐ
         }
     }
     else if (data.costType == "Elixir") {
-        // æ£€æŸ¥åœ£æ°´æ˜¯å¦è¶³å¤Ÿ
+        // ¼ì²éÊ¥Ë®ÊÇ·ñ×ã¹»
         if (resourceManager->canAffordElixir(data.price)) {
-            // å°è¯•è´­ä¹°
+            // ³¢ÊÔ¹ºÂò
             purchaseSuccess = resourceManager->makeElixirPurchase(data.price);
             if (purchaseSuccess) {
                 CCLOG("Purchased %s for %d elixir", data.cardName.c_str(), data.price);
@@ -213,37 +219,31 @@ void Store::onCardClicked(const StoreCardData& data) {
             }
         }
         else {
-            // åœ£æ°´ä¸è¶³
+            // Ê¥Ë®²»×ã
             showPurchaseMessage("Not Enough Elixir!", Color4B::RED);
             CCLOG("Not enough elixir to purchase %s. Need: %d, Have: %d",
                 data.cardName.c_str(), data.price, resourceManager->getElixirAmount());
-            return; // èµ„æºä¸è¶³ï¼Œä¸ç»§ç»­æ‰§è¡Œ
+            return; // ×ÊÔ´²»×ã£¬²»¼ÌÐøÖ´ÐÐ
         }
     }
-    else if (data.price == 0) {
-        // å…è´¹ç‰©å“
-        purchaseSuccess = true;
-        CCLOG("Acquired free item: %s", data.cardName.c_str());
-        showPurchaseMessage("Item Acquired!", Color4B::GREEN);
-    }
     else {
-        // æœªçŸ¥è´§å¸ç±»åž‹
+        // Î´Öª»õ±ÒÀàÐÍ
         showPurchaseMessage("Unknown currency type!", Color4B::RED);
         CCLOG("Unknown cost type: %s for card: %s", data.costType.c_str(), data.cardName.c_str());
         return;
     }
 
-    // å¦‚æžœè´­ä¹°æˆåŠŸ
+    // Èç¹û¹ºÂò³É¹¦
     if (purchaseSuccess) {
-        // æ›´æ–°èµ„æºæ˜¾ç¤º
+        // ¸üÐÂ×ÊÔ´ÏÔÊ¾
         updateResourceDisplay();
 
-        // å¦‚æžœæœ‰è®¾ç½®å›žè°ƒï¼Œè°ƒç”¨å›žè°ƒ
+        // Èç¹ûÓÐÉèÖÃ»Øµ÷£¬µ÷ÓÃ»Øµ÷
         if (_cardSelectCallback) {
             _cardSelectCallback(data.cardName);
         }
 
-        // ç­‰å¾…ä¸€ä¸‹è®©çŽ©å®¶çœ‹åˆ°è´­ä¹°æˆåŠŸæ¶ˆæ¯ï¼Œç„¶åŽè¿”å›ž
+        // µÈ´ýÒ»ÏÂÈÃÍæ¼Ò¿´µ½¹ºÂò³É¹¦ÏûÏ¢£¬È»ºó·µ»Ø
         this->runAction(Sequence::create(
             DelayTime::create(0.8f),
             CallFunc::create([this]() {
@@ -253,7 +253,7 @@ void Store::onCardClicked(const StoreCardData& data) {
         ));
     }
     else {
-        // è´­ä¹°å¤±è´¥ï¼Œä¸è¿”å›žåœºæ™¯ï¼Œè®©çŽ©å®¶ç»§ç»­é€‰æ‹©
+        // ¹ºÂòÊ§°Ü£¬²»·µ»Ø³¡¾°£¬ÈÃÍæ¼Ò¼ÌÐøÑ¡Ôñ
         return;
     }
 }
@@ -261,14 +261,14 @@ void Store::onCardClicked(const StoreCardData& data) {
 void Store::showPurchaseMessage(const std::string& message, Color4B color) {
     auto visibleSize = Director::getInstance()->getVisibleSize();
 
-    // åˆ›å»ºæ¶ˆæ¯æ ‡ç­¾
+    // ´´½¨ÏûÏ¢±êÇ©
     auto messageLabel = Label::createWithTTF(message, "fonts/arial.ttf", 30);
     messageLabel->setPosition(Vec2(visibleSize.width / 2, visibleSize.height / 2 + 100));
     messageLabel->setTextColor(color);
     messageLabel->setOpacity(0);
     this->addChild(messageLabel, 10);
 
-    // æ·¡å…¥æ·¡å‡ºåŠ¨ç”»
+    // µ­Èëµ­³ö¶¯»­
     auto fadeIn = FadeIn::create(0.3f);
     auto delay = DelayTime::create(1.0f);
     auto fadeOut = FadeOut::create(0.5f);
