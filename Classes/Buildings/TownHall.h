@@ -8,7 +8,7 @@ class TownHall : public Building
 public:
     // 创建方法
     static TownHall* create(const std::string& buildingFile = "Town_Hall/Town_Hall1.png", 
-        bool isHownTown = true,
+        bool isHomeTown = true,
         const std::string& turfFile = "grass.png",
         float buildingScale = 0.8f);
 

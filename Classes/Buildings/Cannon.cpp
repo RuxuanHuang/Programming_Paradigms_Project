@@ -4,12 +4,12 @@
 USING_NS_CC;
 
 Cannon* Cannon::create(const std::string& buildingFile,
-    bool isHownTown,
+    bool isHomeTown,
     const std::string& turfFile,
     float buildingScale)
 {
     Cannon* ret = new (std::nothrow) Cannon();
-    ret->setIsHownTown(isHownTown);
+    ret->setIsHownTown(isHomeTown);
     if (ret && ret->init(buildingFile, turfFile, buildingScale))
     {
         ret->autorelease();

@@ -19,7 +19,7 @@ public:
 
     // 判断是否可收集
     bool isCollectable() const {
-        return _isHownTown&&_currentStored > 0 && _collectIcon && _collectIcon->isVisible();
+        return _isHomeTown&&_currentStored > 0 && _collectIcon && _collectIcon->isVisible();
     }
     void tryCollectResource();
 
@@ -56,7 +56,7 @@ protected:
 
 class GoldMine : public ResourceCollector {
 public:
-    static GoldMine* create(const std::string& buildingFile, bool isHownTown = true, const std::string turfFile = "grass.png", float buildingScale = 0.8);
+    static GoldMine* create(const std::string& buildingFile, bool isHomeTown = true, const std::string turfFile = "grass.png", float buildingScale = 0.8);
 
     virtual bool init(const std::string& buildingFile, const std::string turfFile, float buildingScale) override;
 
@@ -66,7 +66,7 @@ protected:
 
 class ElixirCollector : public ResourceCollector {
 public:
-    static ElixirCollector* create(const std::string& buildingFile, bool isHownTown = true, const std::string turfFile = "grass.png", float buildingScale = 0.8);
+    static ElixirCollector* create(const std::string& buildingFile, bool isHomeTown = true, const std::string turfFile = "grass.png", float buildingScale = 0.8);
 
     virtual bool init(const std::string& buildingFile, const std::string turfFile, float buildingScale) override;
 

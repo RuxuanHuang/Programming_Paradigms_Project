@@ -3,12 +3,12 @@
 USING_NS_CC;
 
 Wall* Wall::create(const std::string& buildingFile,
-    bool isHownTown,
+    bool isHomeTown,
     const std::string& turfFile,
     float buildingScale)
 {
     Wall* ret = new (std::nothrow) Wall();
-    ret->setIsHownTown(isHownTown);
+    ret->setIsHownTown(isHomeTown);
     if (ret && ret->init(buildingFile, turfFile, buildingScale))
     {
         ret->autorelease();

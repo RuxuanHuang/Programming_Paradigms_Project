@@ -8,7 +8,7 @@ class Wall : public Building
 public:
     // 创建方法
     static Wall* create(const std::string& buildingFile = "Wall/Wall1.png",
-        bool isHownTown = true,
+        bool isHomeTown = true,
         const std::string& turfFile = "grass.png",
         float buildingScale = 0.8f);
 

@@ -8,7 +8,7 @@ class ArcherTower : public Building
 public:
     // 创建方法
     static ArcherTower* create(const std::string& buildingFile = "Ancher_Tower/Archer_Tower1.png",
-        bool isHownTown = true,
+        bool isHomeTown = true,
         const std::string& turfFile = "grass.png",
         float buildingScale = 0.8f);
 

@@ -29,12 +29,12 @@ Building::Building() :
 }
 
 Building* Building::create(const std::string& buildingFile,
-    bool isHownTown,
+    bool isHomeTown,
     const std::string turfFile,
     float buildingScale)
 {
     Building* ret = new (std::nothrow) Building();
-    ret->setIsHownTown(isHownTown);
+    ret->setIsHownTown(isHomeTown);
     if (ret && ret->init(buildingFile, turfFile, buildingScale))
     {
         ret->autorelease();
@@ -133,7 +133,7 @@ void Building::setBuildingTileSize()
     if (!_turf) return;
     float targetWidth;
     float targetHeight;
-    if (!_isHownTown) {
+    if (!_isHomeTown) {
         targetWidth = BATTLE_MAP_TILE_W * _size;
         targetHeight = BATTLE_MAP_TILE_H * _size;
     }
@@ -164,7 +164,7 @@ void Building::onBuildingMouseDown(Event* event)
     if (!isClickingInTurf(this->_parent, e))
         return;
 
-    if (_isHownTown) {
+    if (_isHomeTown) {
         // 通知 Camp：我要被选中了
         auto camp = dynamic_cast<Camp*>(Director::getInstance()->getRunningScene());
         if (camp) {
@@ -224,7 +224,7 @@ void Building::setTilePosition(Node* mapNode, float tileX, float tileY)
 {
     if (!mapNode) return;
 
-    Vec2 pos = tileToMapLocal(mapNode, tileX, tileY, _isHownTown);
+    Vec2 pos = tileToMapLocal(mapNode, tileX, tileY, _isHomeTown);
     this->setPosition(pos);
 }
 
@@ -355,7 +355,7 @@ bool Building::isClickingInTurf(Node* mapNode, cocos2d::EventMouse* e)
     Vec2 worldCenter = this->convertToWorldSpace(Vec2::ZERO);
     Vec2 mapLocal = mapNode->convertToNodeSpace(worldCenter);
 
-    Vec2 tile1 = mapLocalToTile(mapNode, mapLocal, _isHownTown);
+    Vec2 tile1 = mapLocalToTile(mapNode, mapLocal, _isHomeTown);
 
     Size mapSize = mapNode->getContentSize();
     Vec2 mapCenter(mapSize.width / 2 + offsetX, mapSize.height / 2 + offsetY);
@@ -375,7 +375,7 @@ bool Building::isClickingInTurf(Node* mapNode, cocos2d::EventMouse* e)
     Vec2 mapLocal2 = mapNode->convertToNodeSpace(clickPointWorld2);
 
 
-    Vec2 tile2 = mapLocalToTile(mapNode, mapLocal2, _isHownTown);
+    Vec2 tile2 = mapLocalToTile(mapNode, mapLocal2, _isHomeTown);
 
     Size mapSize2 = mapNode->getContentSize();
 
@@ -413,6 +413,8 @@ void Building::setLevel(int level)
     if (_level != level) {
         _level = level;
 
+		_HP = _upgradeSprites[_level-1]._hp;
+		_cost = _upgradeSprites[_level - 1]._upgradeCost;
         // 如果有对应等级的图片，就更换
         auto it = _upgradeSprites.find(_level);
         if (it != _upgradeSprites.end() && !it->second.spriteFile.empty()) {
@@ -528,7 +530,7 @@ void Building::setSelected(bool selected)
 
         this->runAction(ScaleTo::create(0.1f, this->getScale() * 1.05f));
         showInfoLabel();
-        if (_isHownTown) {
+        if (_isHomeTown) {
             if (_actionBar == nullptr) {
                 _actionBar = BuildingActionBar::create();
                 _actionBar->setVisible(false);
@@ -553,7 +555,7 @@ void Building::setSelected(bool selected)
 
         this->runAction(ScaleTo::create(0.1f, this->getScale() / 1.05f));
         hideInfoLabel();
-        if (_isHownTown) {
+        if (_isHomeTown) {
             _actionBar->hide();
         }
 

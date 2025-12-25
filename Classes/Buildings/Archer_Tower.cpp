@@ -4,12 +4,12 @@
 USING_NS_CC;
 
 ArcherTower* ArcherTower::create(const std::string& buildingFile,
-    bool isHownTown,
+    bool isHomeTown,
     const std::string& turfFile,
     float buildingScale)
 {
     ArcherTower* ret = new (std::nothrow) ArcherTower();
-    ret->setIsHownTown(isHownTown);
+    ret->setIsHownTown(isHomeTown);
     if (ret && ret->init(buildingFile, turfFile, buildingScale))
     {
         ret->autorelease();

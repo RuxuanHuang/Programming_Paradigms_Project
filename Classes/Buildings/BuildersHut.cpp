@@ -3,12 +3,12 @@
 USING_NS_CC;
 
 BuildersHut* BuildersHut::create(const std::string& buildingFile,
-    bool isHownTown,
+    bool isHomeTown,
     const std::string& turfFile,
     float buildingScale)
 {
     BuildersHut* ret = new (std::nothrow) BuildersHut();
-    ret->setIsHownTown(isHownTown);
+    ret->setIsHownTown(isHomeTown);
     if (ret && ret->init(buildingFile, turfFile, buildingScale))
     {
         ret->autorelease();

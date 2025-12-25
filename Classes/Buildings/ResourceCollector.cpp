@@ -26,7 +26,7 @@ bool ResourceCollector::init(const std::string& buildingFile, const std::string 
         _upgradeSprites[i] = levelInformation{ hpValues[i - 1], upgradeCosts[i - 1], "" };
 
     }
-    if (_isHownTown==true) {
+    if (_isHomeTown==true) {
         // 启动生产计时器
         this->schedule(CC_SCHEDULE_SELECTOR(ResourceCollector::updateProduction), 1.0f); // 每秒计算一次
     }
@@ -65,7 +65,7 @@ void ResourceCollector::setupCollectIcon(const std::string& iconFile) {
 }
 
 void ResourceCollector::updateIconVisibility() {
-	if (!_isHownTown) return;
+	if (!_isHomeTown) return;
     if (!_collectIcon) return;
 
     // 判断是否超过阈值
@@ -211,11 +211,11 @@ void ResourceCollector::tryCollectResource() {
     }
 }
 
-GoldMine* GoldMine::create(const std::string& buildingFile, bool isHownTown, const std::string turfFile, float buildingScale)
+GoldMine* GoldMine::create(const std::string& buildingFile, bool isHomeTown, const std::string turfFile, float buildingScale)
 {
 
     GoldMine* ret = new (std::nothrow) GoldMine();
-    ret->_isHownTown = isHownTown;
+    ret->_isHomeTown = isHomeTown;
     if (ret && ret->init(buildingFile, turfFile, buildingScale))
     {
 
@@ -261,10 +261,10 @@ void GoldMine::onCollected(float amount) {
 }
 
 
-ElixirCollector* ElixirCollector::create(const std::string& buildingFile, bool isHownTown, const std::string turfFile, float buildingScale)
+ElixirCollector* ElixirCollector::create(const std::string& buildingFile, bool isHomeTown, const std::string turfFile, float buildingScale)
 {
     ElixirCollector* ret = new (std::nothrow) ElixirCollector();
-    ret->_isHownTown = isHownTown;
+    ret->_isHomeTown = isHomeTown;
     if (ret && ret->init(buildingFile, turfFile, buildingScale))
     {
 

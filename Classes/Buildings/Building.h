@@ -24,7 +24,7 @@ private:
 
 public:
 	static Building* create(const std::string& buildingFile,
-        bool isHownTown = true,
+        bool isHomeTown = true,
         const std::string turfFile = "grass.png",
         float buildingScale = 0.8f);
 
@@ -152,12 +152,12 @@ public:
     bool isAlive() const { return _currentHP > 0; }
 public:
     BuildingActionBar* _actionBar = nullptr;
-	void setIsHownTown(bool isHownTown) { _isHownTown = isHownTown; }
-	bool getIsHownTown() { return _isHownTown; }
+	void setIsHownTown(bool isHomeTown) { _isHomeTown = isHomeTown; }
+	bool getIsHownTown() { return _isHomeTown; }
     void Building::onDestroyed();
 protected:
     int _maxLevel;
-    bool _isHownTown= true;
+    bool _isHomeTown= true;
 
 };
 

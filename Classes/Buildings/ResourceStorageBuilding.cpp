@@ -9,12 +9,12 @@ ResourceStorageBuilding::ResourceStorageBuilding() :
 }
 
 ResourceStorageBuilding* ResourceStorageBuilding::create(const std::string& buildingFile,
-    bool isHownTown,
+    bool isHomeTown,
     const std::string turfFile,
     float buildingScale)
 {
     ResourceStorageBuilding* ret = new (std::nothrow) ResourceStorageBuilding();
-    ret->setIsHownTown(isHownTown);
+    ret->setIsHownTown(isHomeTown);
     if (ret && ret->init(buildingFile, turfFile, buildingScale))
     {
         ret->autorelease();
@@ -61,12 +61,12 @@ void ResourceStorageBuilding::upgrade()
 
 
 GoldStorage* GoldStorage::create(const std::string& buildingFile,
-    bool isHownTown,
+    bool isHomeTown,
     const std::string turfFile,
     float buildingScale)
 {
     GoldStorage* ret = new (std::nothrow) GoldStorage();
-    ret->setIsHownTown(isHownTown);
+    ret->setIsHownTown(isHomeTown);
     if (ret && ret->init(buildingFile, turfFile, buildingScale))
     {
         ret->autorelease();
@@ -104,12 +104,12 @@ bool GoldStorage::init(const std::string& buildingFile,
 
 
 ElixirStorage* ElixirStorage::create(const std::string& buildingFile,
-    bool isHownTown,
+    bool isHomeTown,
     const std::string turfFile,
     float buildingScale)
 {
     ElixirStorage* ret = new (std::nothrow) ElixirStorage();
-    ret->setIsHownTown(isHownTown);
+    ret->setIsHownTown(isHomeTown);
     if (ret && ret->init(buildingFile, turfFile, buildingScale))
     {
         ret->autorelease();

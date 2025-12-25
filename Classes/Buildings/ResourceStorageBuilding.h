@@ -7,7 +7,7 @@ class ResourceStorageBuilding : public Building
 {
 public:
     static ResourceStorageBuilding* create(const std::string& buildingFile,
-        bool isHownTown = true,
+        bool isHomeTown = true,
         const std::string turfFile = "grass.png",
         float buildingScale = 0.8f);
     virtual ~ResourceStorageBuilding() = default;
@@ -40,7 +40,7 @@ class GoldStorage : public ResourceStorageBuilding
 {
 public:
     static GoldStorage* create(const std::string& buildingFile = "Gold_Storage/Gold_Storage1.png",
-        bool isHownTown = true,
+        bool isHomeTown = true,
         const std::string turfFile = "grass.png",
         float buildingScale = 0.7f);
 
@@ -57,7 +57,7 @@ class ElixirStorage : public ResourceStorageBuilding
 {
 public:
     static ElixirStorage* create(const std::string& buildingFile = "Elixir_Storage/Elixir_Storage1.png",
-        bool isHownTown = true,
+        bool isHomeTown = true,
         const std::string turfFile = "grass.png",
         float buildingScale = 0.7f);
 

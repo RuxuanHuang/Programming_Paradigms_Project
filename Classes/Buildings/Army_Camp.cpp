@@ -2,12 +2,12 @@
 USING_NS_CC;
 
 ArmyCamp* ArmyCamp::create(const std::string& buildingFile,
-    bool isHownTown,
+    bool isHomeTown,
     const std::string& turfFile,
     float buildingScale)
 {
     ArmyCamp* ret = new (std::nothrow) ArmyCamp();
-    ret->setIsHownTown(isHownTown);
+    ret->setIsHownTown(isHomeTown);
     if (ret && ret->init(buildingFile, turfFile, buildingScale))
     {
         ret->autorelease();
