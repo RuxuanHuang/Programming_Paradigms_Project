@@ -118,9 +118,9 @@ protected:
     float _diamondWidthRatio;
     float _diamondHeightRatio;
     int _size;
-    void onBuildingMouseDown(cocos2d::Event* event);
-    void onBuildingMouseUp(cocos2d::Event* event);
-    void onBuildingMouseMove(cocos2d::Event* event);
+    virtual void onBuildingMouseDown(cocos2d::Event* event);
+    virtual void onBuildingMouseUp(cocos2d::Event* event);
+    virtual void onBuildingMouseMove(cocos2d::Event* event);
     void setupBuildingOnTurf();
 
     

@@ -19,7 +19,7 @@ public:
 
     // 判断是否可收集
     bool isCollectable() const {
-        return _currentStored > 0 && _collectIcon && _collectIcon->isVisible();
+        return _isHownTown&&_currentStored > 0 && _collectIcon && _collectIcon->isVisible();
     }
     void tryCollectResource();
 

@@ -26,8 +26,14 @@ bool ResourceCollector::init(const std::string& buildingFile, const std::string 
         _upgradeSprites[i] = levelInformation{ hpValues[i - 1], upgradeCosts[i - 1], "" };
 
     }
-    // 启动生产计时器
-    this->schedule(CC_SCHEDULE_SELECTOR(ResourceCollector::updateProduction), 1.0f); // 每秒计算一次
+    if (_isHownTown==true) {
+        // 启动生产计时器
+        this->schedule(CC_SCHEDULE_SELECTOR(ResourceCollector::updateProduction), 1.0f); // 每秒计算一次
+    }
+    else {
+        _currentStored = _maxCapacity;
+    }
+    
 
     return true;
 }
@@ -59,6 +65,7 @@ void ResourceCollector::setupCollectIcon(const std::string& iconFile) {
 }
 
 void ResourceCollector::updateIconVisibility() {
+	if (!_isHownTown) return;
     if (!_collectIcon) return;
 
     // 判断是否超过阈值
