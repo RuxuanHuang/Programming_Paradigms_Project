@@ -1,4 +1,4 @@
-﻿#ifndef __RESOURCE_SYSTEM_H__
+#ifndef __RESOURCE_SYSTEM_H__
 #define __RESOURCE_SYSTEM_H__
 
 #include "cocos2d.h"
@@ -8,15 +8,15 @@ USING_NS_CC;
 // 资源类型枚举
 enum class ResourceType
 {
-    GOLD = 0,    // 金币
-    CRYSTAL = 1  // 水晶
+    GOLD,    // 金币
+    ELIXIR  // 圣水
 };
 
 // 资源基类
 class Resource
 {
 public:
-    Resource(const std::string& name, int initialAmount);
+    Resource(const std::string& name, int initialAmount = 1000);
     virtual ~Resource() {}
 
     // 通用接口
@@ -46,7 +46,7 @@ protected:
 class Gold : public Resource
 {
 public:
-    Gold(int initialAmount = 100);
+    Gold(int initialAmount = 500);
     virtual ~Gold() {}
 
     // 金币特有的方法
@@ -55,12 +55,12 @@ public:
     bool spendForUpgrade(int cost);            // 升级花费
 };
 
-// 水晶子类
-class Crystal : public Resource
+// 圣水子类
+class Elixir : public Resource
 {
 public:
-    Crystal(int initialAmount = 50);
-    virtual ~Crystal() {}
+    Elixir(int initialAmount = 500);
+    virtual ~Elixir() {}
 
     // 水晶特有的方法
     void earnFromQuest(int reward);            // 任务获得
@@ -77,27 +77,32 @@ public:
 
     // 获取资源对象
     Gold* getGold() { return m_gold; }
-    Crystal* getCrystal() { return m_crystal; }
+    Elixir* getElixir() { return m_elixir; }
     Resource* getResource(ResourceType type);
 
-    // 资源操作
-    bool canAffordPurchase(int goldCost, int crystalCost) const;
-    bool makePurchase(int goldCost, int crystalCost, bool allowZero = true);
-    void earnResources(int goldAmount, int crystalAmount);
+    // 单个资源购买检查
+    bool canAffordGold(int goldCost) const;
+    bool canAffordElixir(int elixirCost) const;
+
+    // 单个资源购买
+    bool makeGoldPurchase(int goldCost, bool allowZero = true);
+    bool makeElixirPurchase(int elixirCost, bool allowZero = true);
+
+    // 获得资源（三种方式）
+    void earnResources(int goldAmount, int elixirAmount);  // 同时获得两种
+    void earnGold(int amount);                             // 只获得金币
+    void earnElixir(int amount);                           // 只获得圣水
 
     // 保存/加载
     void saveResources();
     void loadResources();
 
     // 重置
-    void resetAllResources(int goldAmount = 100, int crystalAmount = 50);
+    void resetAllResources(int goldAmount = 100, int elixirlAmount = 50);
 
     // 获取字符串表示
-    std::string getGoldString() const;
-    std::string getCrystalString() const;
-
-    // 检查购买是否得零
-    bool willPurchaseLeaveZero(int goldCost, int crystalCost) const;
+    int getGoldAmount() const;
+    int getElixirAmount() const;
 
 private:
     ResourceManager();
@@ -105,11 +110,9 @@ private:
     static ResourceManager* s_instance;
 
     Gold* m_gold;
-    Crystal* m_crystal;
+    Elixir* m_elixir;
 
-    // 禁止拷贝
-    ResourceManager(const ResourceManager&) = delete;
-    ResourceManager& operator=(const ResourceManager&) = delete;
+
 };
 
 #endif // __RESOURCE_SYSTEM_H__
