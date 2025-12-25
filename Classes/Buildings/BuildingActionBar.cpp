@@ -30,8 +30,7 @@ bool BuildingActionBar::init()
 
     // 设置屏幕底部居中位置
     auto visibleSize = Director::getInstance()->getVisibleSize();
-    this->setPosition(Vec2(visibleSize.width / 2, 300)); // 离底部300像素
-
+    this->setPosition(Vec2(visibleSize.width / 2, 0)); 
     // 创建最简单的按钮
     createButtons();
 
@@ -53,7 +52,7 @@ void BuildingActionBar::createButtons()
     if (_infoButton) {
         // 移除所有额外设置，只保留默认图片
         _infoButton->setScale(0.24f);
-        _infoButton->setPosition(Vec2(-400, 0));
+        _infoButton->setPosition(Vec2(-400, -200));
         _buttonContainer->addChild(_infoButton);
     }
 
@@ -61,7 +60,7 @@ void BuildingActionBar::createButtons()
     _changeSkinButton = Button::create("Buttons/ChangeAppearance.png", "", ""); // 你的按钮图片名
     if (_changeSkinButton) {
         _changeSkinButton->setScale(0.21f);
-        _changeSkinButton->setPosition(Vec2(0, 10)); // 中间位置
+        _changeSkinButton->setPosition(Vec2(0, -190)); // 中间位置
         _changeSkinButton->setVisible(false); // 默认隐藏
         _buttonContainer->addChild(_changeSkinButton);
     }
@@ -70,21 +69,21 @@ void BuildingActionBar::createButtons()
     _upgradeButton = Button::create("Buttons/UpgradeButton.png", "", "");
     if (_upgradeButton) {
         _upgradeButton->setScale(0.21f);
-        _upgradeButton->setPosition(Vec2(400, 0)); 
+        _upgradeButton->setPosition(Vec2(400, -200)); 
         _buttonContainer->addChild(_upgradeButton);
     }
     
     // 创建标签 - 调整到按钮外部
-    _costLabel = Label::createWithTTF("", "fonts/Marker Felt.ttf", 24); // 缩小字体
+    _costLabel = Label::createWithTTF("", "fonts/Marker Felt.ttf", 22); 
     if (!_costLabel) {
-        _costLabel = Label::createWithSystemFont("", "Arial", 24);
+        _costLabel = Label::createWithSystemFont("", "Arial", 22);
     }
 
     if (_costLabel) {
         _buttonContainer->addChild(_costLabel, 100);
 
         // 调整位置，确保在按钮上方
-        _costLabel->setPosition(Vec2(400, 70)); // 在升级按钮上方
+        _costLabel->setPosition(Vec2(400, -160)); // 在升级按钮上方
         _costLabel->setColor(Color3B::YELLOW);
         _costLabel->enableOutline(Color4B::BLACK, 2);
 
