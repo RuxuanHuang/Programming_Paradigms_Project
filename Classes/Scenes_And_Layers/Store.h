@@ -7,43 +7,50 @@
 
 USING_NS_CC;
 
-// ÉÌµê¿¨Æ¬Êı¾İ½á¹¹
+// å•†åº—å¡ç‰‡æ•°æ®ç»“æ„
 struct StoreCardData {
-    std::string cardName;      // ¿¨Æ¬Ãû³Æ
-    std::string iconPath;      // Í¼±êÂ·¾¶
-    int price;                 // ¼Û¸ñ
-    std::string costType;     // »õ±ÒÀàĞÍ(½ğ±Ò/Ê¥Ë®£©
-    bool isLocked;            // ÊÇ·ñËø¶¨
+    std::string cardName;      // å¡ç‰‡åç§°
+    std::string iconPath;      // å›¾æ ‡è·¯å¾„
+    int price;                 // ä»·æ ¼
+    std::string costType;     // è´§å¸ç±»å‹(é‡‘å¸/åœ£æ°´ï¼‰
+    bool isLocked;            // æ˜¯å¦é”å®š
 };
 
 class Store : public Scene {
 public:
-    // Ìí¼Ó»Øµ÷º¯ÊıÀàĞÍ¶¨Òå
+    // æ·»åŠ å›è°ƒå‡½æ•°ç±»å‹å®šä¹‰
     typedef std::function<void(const std::string& cardName)> CardSelectCallback;
 
     CREATE_FUNC(Store);
     virtual bool init() override;
 
-    // ÉèÖÃ¿¨Æ¬Ñ¡Ôñ»Øµ÷
+    // è®¾ç½®å¡ç‰‡é€‰æ‹©å›è°ƒ
     void setCardSelectCallback(const CardSelectCallback& callback) {
         _cardSelectCallback = callback;
     }
-    
+
 
 private:
-    // ³õÊ¼»¯Êı¾İ
+    Label* goldLabel = nullptr;
+    Label* elixirLabel = nullptr;
+
+    // åˆå§‹åŒ–æ•°æ®
     void initCardData();
-    // ´´½¨UI
+    // åˆ›å»ºUI
     void createUI();
-    // ´´½¨¿¨Æ¬
+    // åˆ›å»ºå¡ç‰‡
     void createCard(const StoreCardData& data, Vec2 position);
-    // ´¦Àí¿¨Æ¬µã»÷
-    void onCardClicked(const std::string& cardName);
+    // å¤„ç†å¡ç‰‡ç‚¹å‡»
+    void onCardClicked(const StoreCardData& data);
+    void showPurchaseMessage(const std::string& message, Color4B color);
+    void createResourceDisplay();
+    void updateResourceDisplay();
+
 
     Vector<Sprite*> cardSprites;
     std::vector<StoreCardData> cardDataList;
-    CardSelectCallback _cardSelectCallback; // ¿¨Æ¬Ñ¡Ôñ»Øµ÷
-    
+    CardSelectCallback _cardSelectCallback; // å¡ç‰‡é€‰æ‹©å›è°ƒ
+
 };
 
 #endif // __STORE_H__
