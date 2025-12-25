@@ -1,4 +1,4 @@
-﻿#include "resources.h"
+#include "resources.h"
 
 // 静态成员初始化
 ResourceManager* ResourceManager::s_instance = nullptr;
@@ -7,7 +7,7 @@ ResourceManager* ResourceManager::s_instance = nullptr;
 Resource::Resource(const std::string& name, int initialAmount)
     : m_name(name)
     , m_amount(initialAmount)
-    , m_maxLimit(999999)  // 默认最大值
+    , m_maxLimit(1000)  // 默认最大值
 {
     CCLOG("Resource %s created with amount: %d", name.c_str(), initialAmount);
 }
@@ -69,7 +69,7 @@ bool Resource::canAfford(int cost) const
 Gold::Gold(int initialAmount)
     : Resource("Gold", initialAmount)
 {
-    setMaxLimit(9999999);  // 金币上限较高
+    setMaxLimit(1000);  // 金币上限较高
 }
 
 void Gold::earnFromBattle(int reward)
@@ -104,23 +104,19 @@ bool Gold::spendForUpgrade(int cost)
         return false;
     }
 
-    // 升级花费可能有额外检查
-    if (getAmount() - cost < 100) {  // 确保升级后至少保留100金币
-        CCLOG("Cannot upgrade, would leave less than 100 gold");
-        return false;
-    }
+
 
     return subtract(cost);
 }
 
-// ============ Crystal 子类实现 ============
-Crystal::Crystal(int initialAmount)
-    : Resource("Crystal", initialAmount)
+// ============ Elixir 子类实现 ============
+Elixir::Elixir(int initialAmount)
+    : Resource("Elixir", initialAmount)
 {
-    setMaxLimit(99999);  // 水晶上限较低
+    setMaxLimit(1000);  // 圣水上限较低
 }
 
-void Crystal::earnFromQuest(int reward)
+void Elixir::earnFromQuest(int reward)
 {
     if (reward <= 0) {
         CCLOG("Quest reward must be positive");
@@ -135,7 +131,7 @@ void Crystal::earnFromQuest(int reward)
     }
 }
 
-bool Crystal::spendForPremiumItem(int cost)
+bool Elixir::spendForPremiumItem(int cost)
 {
     if (cost <= 0) {
         CCLOG("Premium item cost must be positive");
@@ -145,7 +141,7 @@ bool Crystal::spendForPremiumItem(int cost)
     return subtract(cost);
 }
 
-bool Crystal::spendForInstant(int cost)
+bool Elixir::spendForInstant(int cost)
 {
     if (cost <= 0) {
         CCLOG("Instant completion cost must be positive");
@@ -163,15 +159,15 @@ bool Crystal::spendForInstant(int cost)
 // ============ ResourceManager 实现 ============
 ResourceManager::ResourceManager()
 {
-    m_gold = new Gold(100);
-    m_crystal = new Crystal(50);
+    m_gold = new Gold(500);
+    m_elixir = new Elixir(500);  // 改为m_elixir
     CCLOG("ResourceManager created");
 }
 
 ResourceManager::~ResourceManager()
 {
     delete m_gold;
-    delete m_crystal;
+    delete m_elixir;  // 改为m_elixir
     CCLOG("ResourceManager destroyed");
 }
 
@@ -196,83 +192,94 @@ Resource* ResourceManager::getResource(ResourceType type)
     switch (type) {
     case ResourceType::GOLD:
         return m_gold;
-    case ResourceType::CRYSTAL:
-        return m_crystal;
+    case ResourceType::ELIXIR:
+        return m_elixir;
     default:
         return nullptr;
     }
 }
 
-bool ResourceManager::canAffordPurchase(int goldCost, int crystalCost) const
+bool ResourceManager::canAffordGold(int goldCost) const
 {
-    bool canAffordGold = m_gold->canAfford(goldCost);
-    bool canAffordCrystal = m_crystal->canAfford(crystalCost);
-
-    if (!canAffordGold || !canAffordCrystal) {
-        CCLOG("Cannot afford purchase. Gold: %s, Crystal: %s",
-            canAffordGold ? "OK" : "Insufficient",
-            canAffordCrystal ? "OK" : "Insufficient");
-        return false;
-    }
-
-    return true;
+    return m_gold->canAfford(goldCost);
 }
 
-bool ResourceManager::makePurchase(int goldCost, int crystalCost, bool allowZero)
+bool ResourceManager::canAffordElixir(int elixirCost) const
 {
-    // 检查是否足够
-    if (!canAffordPurchase(goldCost, crystalCost)) {
+    return m_elixir->canAfford(elixirCost);  // 改为m_elixir
+}
+
+bool ResourceManager::makeGoldPurchase(int goldCost, bool allowZero)
+{
+    if (!canAffordGold(goldCost)) {
         return false;
     }
 
-    // 检查购买后是否得零
-    if (!allowZero && willPurchaseLeaveZero(goldCost, crystalCost)) {
-        CCLOG("Purchase would leave zero resources, not allowed");
+    if (!allowZero && (m_gold->getAmount() - goldCost == 0)) {
+        CCLOG("Gold purchase would leave zero resources, not allowed");
         return false;
     }
 
-    // 执行购买
-    bool goldSuccess = m_gold->subtract(goldCost);
-    bool crystalSuccess = m_crystal->subtract(crystalCost);
+    return m_gold->subtract(goldCost);
+}
 
-    if (goldSuccess && crystalSuccess) {
-        CCLOG("Purchase successful. Gold: -%d, Crystal: -%d", goldCost, crystalCost);
-        return true;
-    }
-    else {
-        // 如果有一个失败，回滚
-        if (goldSuccess) m_gold->add(goldCost);
-        if (crystalSuccess) m_crystal->add(crystalCost);
-        CCLOG("Purchase failed and rolled back");
+bool ResourceManager::makeElixirPurchase(int elixirCost, bool allowZero)
+{
+    if (!canAffordElixir(elixirCost)) {
         return false;
+    }
+
+    if (!allowZero && (m_elixir->getAmount() - elixirCost == 0)) {
+        CCLOG("Elixir purchase would leave zero resources, not allowed");
+        return false;
+    }
+
+    return m_elixir->subtract(elixirCost);  // 改为m_elixir
+}
+
+void ResourceManager::earnGold(int amount)
+{
+    if (amount > 0) {
+        m_gold->add(amount);
+        CCLOG("Earned %d gold, total: %d", amount, m_gold->getAmount());
+    }
+    else if (amount < 0) {
+        CCLOG("Warning: Trying to earn negative gold: %d", amount);
     }
 }
 
-bool ResourceManager::willPurchaseLeaveZero(int goldCost, int crystalCost) const
+void ResourceManager::earnElixir(int amount)
 {
-    int goldAfter = m_gold->getAmount() - goldCost;
-    int crystalAfter = m_crystal->getAmount() - crystalCost;
-
-    return (goldAfter == 0 || crystalAfter == 0);
+    if (amount > 0) {
+        m_elixir->add(amount);  // 改为m_elixir
+        CCLOG("Earned %d elixir, total: %d", amount, m_elixir->getAmount());  // 改为m_elixir
+    }
+    else if (amount < 0) {
+        CCLOG("Warning: Trying to earn negative elixir: %d", amount);
+    }
 }
 
-void ResourceManager::earnResources(int goldAmount, int crystalAmount)
+void ResourceManager::earnResources(int goldAmount, int elixirAmount)
 {
     if (goldAmount > 0) {
-        m_gold->add(goldAmount);
+        earnGold(goldAmount);
     }
 
-    if (crystalAmount > 0) {
-        m_crystal->add(crystalAmount);
+    if (elixirAmount > 0) {
+        earnElixir(elixirAmount);
+    }
+
+    if (goldAmount <= 0 && elixirAmount <= 0) {
+        CCLOG("Warning: earnResources called with non-positive amounts: gold=%d, elixir=%d",
+            goldAmount, elixirAmount);
     }
 }
-
 void ResourceManager::saveResources()
 {
     // 这里可以保存到UserDefault或文件
     UserDefault* userDefault = UserDefault::getInstance();
     userDefault->setIntegerForKey("player_gold", m_gold->getAmount());
-    userDefault->setIntegerForKey("player_crystal", m_crystal->getAmount());
+    userDefault->setIntegerForKey("player_crystal", m_elixir->getAmount());
     userDefault->flush();
     CCLOG("Resources saved");
 }
@@ -280,27 +287,26 @@ void ResourceManager::saveResources()
 void ResourceManager::loadResources()
 {
     UserDefault* userDefault = UserDefault::getInstance();
-    int gold = userDefault->getIntegerForKey("player_gold", 100);
-    int crystal = userDefault->getIntegerForKey("player_crystal", 50);
+    int gold = userDefault->getIntegerForKey("player_gold", 500);
+    int elixir = userDefault->getIntegerForKey("player_elixir", 500);
 
     m_gold->reset(gold);
-    m_crystal->reset(crystal);
-    CCLOG("Resources loaded: Gold=%d, Crystal=%d", gold, crystal);
+    m_elixir->reset(elixir);
+
 }
 
-void ResourceManager::resetAllResources(int goldAmount, int crystalAmount)
+void ResourceManager::resetAllResources(int goldAmount, int elixirAmount)
 {
     m_gold->reset(goldAmount);
-    m_crystal->reset(crystalAmount);
-    CCLOG("Resources reset: Gold=%d, Crystal=%d", goldAmount, crystalAmount);
+    m_elixir->reset(elixirAmount);
+    CCLOG("Resources reset: Gold=%d, Crystal=%d", goldAmount, elixirAmount);
 }
 
-std::string ResourceManager::getGoldString() const
-{
-    return StringUtils::format("%d", m_gold->getAmount());
+
+int ResourceManager::getGoldAmount() const {
+    return m_gold->getAmount();
 }
 
-std::string ResourceManager::getCrystalString() const
-{
-    return StringUtils::format("%d", m_crystal->getAmount());
+int ResourceManager::getElixirAmount() const {
+    return m_elixir->getAmount();
 }
