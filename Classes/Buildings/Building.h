@@ -70,7 +70,9 @@ public:
     virtual void onUpgradeButtonClicked();
 
   
-
+    int getSize() {
+        return _size;
+    }
     // Éý¼¶Ò»´Î
     virtual void upgrade();
 
@@ -155,10 +157,21 @@ public:
 	void setIsHownTown(bool isHomeTown) { _isHomeTown = isHomeTown; }
 	bool getIsHownTown() { return _isHomeTown; }
     void Building::onDestroyed();
+    virtual std::string getBuildingType() const { return _buildingType; }
+    virtual void setBuildingType(const std::string& type) { _buildingType = type; }
+    int getGridX() const { return _gridX; }
+    int getGridY() const { return _gridY; }
+    void setGridPosition(int x, int y) {
+        _gridX = x;
+        _gridY = y;
+    }
 protected:
     int _maxLevel;
     bool _isHomeTown= true;
+    std::string _buildingType;
 
+    int _gridX=0;
+    int _gridY=0;
 };
 
 #endif // __BUILDING_H__

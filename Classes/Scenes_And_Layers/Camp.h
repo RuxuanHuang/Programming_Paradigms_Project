@@ -22,13 +22,13 @@ public:
     void enterBattleScene();
     void openStore();
     void createBuildingFromCard(const std::string& cardName);
-
+    
 private:
     // --- 场景内部变量 ---
 	Sprite* mapSprite;  // 地图精灵
     Building* _newBuilding;
-	Vector<Building*> _allBuildings; // 存储所有建筑对象的容器
-
+    cocos2d::Vector<Building*> _allBuildings;  // 存储所有建筑的向量
+    std::map<std::string, int> _currentBuildingCounts;  // 建筑类型 -> 当前数量
     // 使用基类指针存储建筑对象
     Building* _building;
 
@@ -54,6 +54,16 @@ private:
     // 当前地图皮肤名称
     std::string _currentMapSkin = "others/Camp.png";
 
+    void updateBuildingCounts();  // 更新建筑计数
+    bool canBuildMore(const std::string& buildingType);  // 检查是否可以建造更多
+    std::string getBuildingTypeFromCard(const std::string& cardName);  // 卡片名转建筑类型
+    TownHall* getTownHall() const;  // 获取大本营实例
+    void showCannotBuildMessage(const std::string& buildingType,
+        bool isLimitReached = false,
+        int maxCount = 0,
+        int currentCount = 0);  // 显示无法建造的提示
+
+    void onExit() override;
 };
 
 #endif // __CAMP_H__

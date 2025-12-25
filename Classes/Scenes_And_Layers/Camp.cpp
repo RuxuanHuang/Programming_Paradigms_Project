@@ -11,7 +11,7 @@
 #include"Archer_Tower.h"
 #include"Wall.h"
 #include"Cannon.h"
-
+#include "BuildingManager.h"
 USING_NS_CC;
 
 // 定义Tag常量
@@ -90,7 +90,8 @@ bool Camp::init()
     else {
         problemLoading("'FightingButton.png'");
     }
-
+    BuildingManager* manager = BuildingManager::getInstance();
+    manager->initialize();
     // ========== 创建大本营 ==========
     auto townHall = TownHall::create("Town_hall/Town_hall1.png");
     if (townHall == nullptr)
@@ -101,6 +102,8 @@ bool Camp::init()
         townHall->setTilePosition(mapSprite, 0.5, 0.5);
         mapSprite->addChild(townHall, 1);
         _building = townHall;
+        _allBuildings.pushBack(townHall);
+		
 
         // 显示网格范围
          //townHall->drawDebugMapRange(mapSprite);
@@ -115,7 +118,9 @@ bool Camp::init()
         BuilderHut->setTilePosition(mapSprite, 5.5, 5.5);
         mapSprite->addChild(BuilderHut, 1);
         _building = BuilderHut;
+        _allBuildings.pushBack(BuilderHut);
     }
+    townHall->setBuildingType("TownHall");
 
     auto StoreButton = Button::create("Buttons/StoreButton.png","","");
     if (StoreButton) {
@@ -129,7 +134,7 @@ bool Camp::init()
             });
 
     }
-    
+    BuilderHut->setBuildingType("BuilderHut");
   
     
     // 场景全局/地图事件监听器 (处理滚轮和非房子区域的拖动)
@@ -142,7 +147,7 @@ bool Camp::init()
 
     // 注册监听器 (处理滚轮和地图拖动)
     _eventDispatcher->addEventListenerWithSceneGraphPriority(_mouseListener, this);
-
+    updateBuildingCounts();
     return true;
 }
 
@@ -356,7 +361,7 @@ void Camp::changeMapSkin()
     auto mapSprite = dynamic_cast<Sprite*>(this->getChildByTag(CAMP_SPRITE_TAG));
     if (!mapSprite) return;
 
-    // 切换地图皮肤（示例：循环切换两种皮肤）
+    // 切换地图皮肤
     if (_currentMapSkin == "others/Camp.png") {
         _currentMapSkin = "others/Campaaa.png"; // 你的第二个地图图片
     }
@@ -405,81 +410,48 @@ void Camp::openStore() {
 }
 
 void Camp::createBuildingFromCard(const std::string& cardName) {
-    // 根据卡片名称创建对应的建筑
-    Building* newBuilding = nullptr;
+    BuildingManager* buildingManager = BuildingManager::getInstance();
 
-    if (cardName == "Cannon") {
-        auto cannon = Cannon::create("Cannon/Cannon1.png");
-        if (cannon) {
-            newBuilding = cannon;
-            CCLOG("创建加农炮");
-        }
-    }
-    else if (cardName == "Archer Tower") {
-        auto archerTower = ArcherTower::create("Archer_Tower/Archer_Tower1.png");
-        if (archerTower) {
-            newBuilding = archerTower;
-            CCLOG("创建箭塔");
-        }
-    }
-    else if (cardName == "Wall") {
-        auto wall = Wall::create("Wall/Wall1.png");
-        if (wall) {
-            newBuilding = wall;
-            CCLOG("创建城墙");
-        }
-    }
-    else if (cardName == "Army Camp") {
-        auto armyCamp = ArmyCamp::create("Army_Camp/Army_Camp1.png");
-        if (armyCamp) {
-            newBuilding = armyCamp;
-            CCLOG("创建兵营");
-        }
-    }
-    else if (cardName == "Gold Mine") {
-        auto goldMine = GoldMine::create("Gold_Mine/Gold_Mine1.png");
-        if (goldMine) {
-            newBuilding = goldMine;
-            CCLOG("创建金矿");
-        }
-    }
-    else if (cardName == "Elixir Collector") {
-        auto elixirCollector = ElixirCollector::create("Elixir_Collector/Elixir_Collector1.png");
-        if (elixirCollector) {
-            newBuilding = elixirCollector;
-            CCLOG("创建圣水收集器");
-        }
-    }
-    else if (cardName == "Gold Storage") {
-        auto goldStorage = GoldStorage::create("Gold_Storage/Gold_Storage1.png");
-        if (goldStorage) {
-            newBuilding = goldStorage;
-            CCLOG("创建金库");
-        }
-    }
-    else if (cardName == "Elixir Storage") {
-        auto elixirStorage = ElixirStorage::create("Elixir_Storage/Elixir_Storage1.png");
-        if (elixirStorage) {
-            newBuilding = elixirStorage;
-            CCLOG("创建圣水瓶");
-        }
-    }
-    else {
-        CCLOG("未知的建筑名称: %s", cardName.c_str());
+    // 1. 获取建筑类型
+    std::string buildingType = buildingManager->cardNameToType(cardName);
+    if (buildingType.empty()) {
+        CCLOG("未知的卡片名称: %s", cardName.c_str());
         return;
     }
 
-    if (newBuilding) {
-        
-        newBuilding->setTilePosition(mapSprite, 0, 0);
-        
+    // 2. 获取大本营等级
+    int townHallLevel = 1; // 默认
+    TownHall* townHall = getTownHall();
+    if (townHall) {
+        townHallLevel = townHall->getLevel();
+    }
 
+    // 3. 检查是否解锁
+    if (!buildingManager->isBuildingUnlocked(buildingType, townHallLevel)) {
+        showCannotBuildMessage(buildingType, false, townHallLevel);
+        return;
+    }
+
+    // 4. 检查数量限制
+    int currentCount = _currentBuildingCounts[buildingType];
+    if (!buildingManager->canBuildMore(buildingType, townHallLevel, currentCount)) {
+        int maxCount = buildingManager->getMaxCount(buildingType, townHallLevel);
+        showCannotBuildMessage(buildingType, true, maxCount, currentCount);
+        return;
+    }
+    Building* newBuilding = buildingManager->createBuildingFromCard(cardName);
+    if (!newBuilding) {
+        CCLOG("错误: 创建建筑失败: %s", cardName.c_str());
+        return;
+    }
+   
+    if (newBuilding) {
+
+        newBuilding->setTilePosition(mapSprite, 0, 0);
         // 添加到地图上
         mapSprite->addChild(newBuilding, 1);
-
         // 添加到存储向量中（关键步骤！）
         _allBuildings.pushBack(newBuilding);
-
         // 延迟一帧创建操作栏，确保我们已经完全回到了Camp场景
         this->scheduleOnce([this, newBuilding](float dt) {
             // 再次检查建筑是否还存在
@@ -506,8 +478,89 @@ void Camp::createBuildingFromCard(const std::string& cardName) {
             }, 0.01f, "create_action_bar_" + cardName); // 使用很小的延迟
 
         CCLOG("成功创建建筑: %s，当前总建筑数: %zu", cardName.c_str(), _allBuildings.size());
+        updateBuildingCounts();
     }
     else {
         CCLOG("创建建筑失败，可能图片路径错误: %s", cardName.c_str());
     }
+}
+void Camp::updateBuildingCounts() {
+    // 清空计数
+    _currentBuildingCounts.clear();
+
+    // 遍历所有建筑
+    for (Building* building : _allBuildings) {
+        if (!building) continue;
+
+        std::string type = building->getBuildingType();
+
+
+        // 统计数量
+        if (_currentBuildingCounts.find(type) == _currentBuildingCounts.end()) {
+            // 第一次出现，初始化为1
+            _currentBuildingCounts[type] = 1;
+        }
+        else {
+            // 已经存在，数量加1
+            _currentBuildingCounts[type]++;
+        }
+    }
+
+}
+
+TownHall* Camp::getTownHall() const {
+    for (Building* building : _allBuildings) {
+        TownHall* townHall = dynamic_cast<TownHall*>(building);
+        if (townHall) {
+            return townHall;
+        }
+    }
+    return nullptr;
+}
+
+
+
+bool Camp::canBuildMore(const std::string& buildingType) {
+    TownHall* townHall = getTownHall();
+    if (!townHall) {
+        CCLOG("错误: 未找到大本营");
+        return false;
+    }
+
+    int currentLevel = townHall->getLevel();
+
+    // 使用BuildingManager检查
+    BuildingManager* manager = BuildingManager::getInstance();
+    int maxAllowed = manager->getMaxCount(buildingType, currentLevel);
+
+    if (maxAllowed <= 0) {
+        CCLOG("建筑 %s 在当前大本营等级(%d)不可建造", buildingType.c_str(), currentLevel);
+        return false;
+    }
+
+    // 检查当前已有数量
+    int currentCount = _currentBuildingCounts[buildingType];
+
+    return currentCount < maxAllowed;
+}
+
+std::string Camp::getBuildingTypeFromCard(const std::string& cardName) {
+    // 使用BuildingManager进行转换
+    BuildingManager* manager = BuildingManager::getInstance();
+    return manager->cardNameToType(cardName);
+}
+
+void Camp::showCannotBuildMessage(const std::string& buildingType,
+    bool isLimitReached,
+    int maxCount,
+    int currentCount) {
+    ;
+}
+
+void Camp::onExit() {
+   
+
+   
+
+    Scene::onExit();
 }

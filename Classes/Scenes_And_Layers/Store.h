@@ -4,53 +4,54 @@
 #include "cocos2d.h"
 #include "ui/CocosGUI.h"
 #include "AudioEngine.h"
+#include "BuildingManager.h"
 
 USING_NS_CC;
 
-// å•†åº—å¡ç‰‡æ•°æ®ç»“æ„
+// ÉÌµê¿¨Æ¬Êı¾İ½á¹¹
 struct StoreCardData {
-    std::string cardName;      // å¡ç‰‡åç§°
-    std::string iconPath;      // å›¾æ ‡è·¯å¾„
-    int price;                 // ä»·æ ¼
-    std::string costType;     // è´§å¸ç±»å‹(é‡‘å¸/åœ£æ°´ï¼‰
-    bool isLocked;            // æ˜¯å¦é”å®š
+    std::string cardName;      // ¿¨Æ¬Ãû³Æ
+    std::string iconPath;      // Í¼±êÂ·¾¶
+    int price;                 // ¼Û¸ñ
+    std::string costType;     // »õ±ÒÀàĞÍ(½ğ±Ò/Ê¥Ë®£©
+    bool isLocked;            // ÊÇ·ñËø¶¨
 };
 
 class Store : public Scene {
 public:
-    // æ·»åŠ å›è°ƒå‡½æ•°ç±»å‹å®šä¹‰
+    // Ìí¼Ó»Øµ÷º¯ÊıÀàĞÍ¶¨Òå
     typedef std::function<void(const std::string& cardName)> CardSelectCallback;
 
     CREATE_FUNC(Store);
     virtual bool init() override;
 
-    // è®¾ç½®å¡ç‰‡é€‰æ‹©å›è°ƒ
+    // ÉèÖÃ¿¨Æ¬Ñ¡Ôñ»Øµ÷
     void setCardSelectCallback(const CardSelectCallback& callback) {
         _cardSelectCallback = callback;
     }
-
+    
 
 private:
     Label* goldLabel = nullptr;
     Label* elixirLabel = nullptr;
 
-    // åˆå§‹åŒ–æ•°æ®
+    // ³õÊ¼»¯Êı¾İ
     void initCardData();
-    // åˆ›å»ºUI
+    // ´´½¨UI
     void createUI();
-    // åˆ›å»ºå¡ç‰‡
+    // ´´½¨¿¨Æ¬
     void createCard(const StoreCardData& data, Vec2 position);
-    // å¤„ç†å¡ç‰‡ç‚¹å‡»
+    // ´¦Àí¿¨Æ¬µã»÷
     void onCardClicked(const StoreCardData& data);
     void showPurchaseMessage(const std::string& message, Color4B color);
     void createResourceDisplay();
     void updateResourceDisplay();
-
+   
 
     Vector<Sprite*> cardSprites;
     std::vector<StoreCardData> cardDataList;
-    CardSelectCallback _cardSelectCallback; // å¡ç‰‡é€‰æ‹©å›è°ƒ
-
+    CardSelectCallback _cardSelectCallback; // ¿¨Æ¬Ñ¡Ôñ»Øµ÷
+    
 };
 
 #endif // __STORE_H__
