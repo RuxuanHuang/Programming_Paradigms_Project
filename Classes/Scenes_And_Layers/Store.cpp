@@ -1,135 +1,56 @@
-#include "Store.h"
+#ifndef __STORE_H__
+#define __STORE_H__
 
-bool Store::init() {
-    if (!Scene::init()) {
-        return false;
+#include "cocos2d.h"
+#include "ui/CocosGUI.h"
+#include "AudioEngine.h"
+
+USING_NS_CC;
+
+// å•†åº—å¡ç‰‡æ•°æ®ç»“æ„
+struct StoreCardData {
+    std::string cardName;      // å¡ç‰‡åç§°
+    std::string iconPath;      // å›¾æ ‡è·¯å¾„
+    int price;                 // ä»·æ ¼
+    std::string costType;     // è´§å¸ç±»å‹(é‡‘å¸/åœ£æ°´ï¼‰
+    bool isLocked;            // æ˜¯å¦é”å®š
+};
+
+class Store : public Scene {
+public:
+    // æ·»åŠ å›è°ƒå‡½æ•°ç±»å‹å®šä¹‰
+    typedef std::function<void(const std::string& cardName)> CardSelectCallback;
+
+    CREATE_FUNC(Store);
+    virtual bool init() override;
+
+    // è®¾ç½®å¡ç‰‡é€‰æ‹©å›è°ƒ
+    void setCardSelectCallback(const CardSelectCallback& callback) {
+        _cardSelectCallback = callback;
     }
+    
 
-    // »ñÈ¡¿É¼ûÇøÓò´óĞ¡
-    auto visibleSize = Director::getInstance()->getVisibleSize();
-    Vec2 origin = Director::getInstance()->getVisibleOrigin();
+private:
+    Label* goldLabel = nullptr;
+    Label* elixirLabel = nullptr;
 
-    // ´´½¨±³¾°
-    auto background = Sprite::create("shop.png");
-    if (background != nullptr) {
-        background->setScaleX(visibleSize.width / background->getContentSize().width);
-        background->setScaleY(visibleSize.height / background->getContentSize().height);
-        background->setPosition(Vec2(visibleSize.width / 2 + origin.x,
-            visibleSize.height / 2 + origin.y));
-        this->addChild(background, -1);
-    }
-    else {
-        auto fallbackBackground = LayerColor::create(Color4B(50, 50, 80, 255),
-            visibleSize.width, visibleSize.height);
-        this->addChild(fallbackBackground, -1);
-    }
-
-    // ³õÊ¼»¯¿¨Æ¬Êı¾İ
-    initCardData();
-    createUI();
-
-    return true;
-}
-
-void Store::initCardData() {
-    // ³õÊ¼»¯8ÖÖ½¨Öş¿¨Æ¬Êı¾İ
-
-    cardDataList = {
-        {"Cannon", "StoreCards/CannonCard.png", 250,"Gold" ,false},
-        {"Archer Tower", "StoreCards/ArcherTowerCard.png", 1000,"Gold" ,false},
-        {"Wall", "StoreCards/WallCard.png", 0, "Gold",false},
-		{"Army Camp", "StoreCards/ArmyCampCard.png", 200,"Elixir", false},
-		{"Gold Mine", "StoreCards/GoldMineCard.png", 150,"Elixir", false},
-		{"Elixir Collector", "StoreCards/ElixirCollectorCard.png", 150,"Gold", false},
-		{"Gold Storage", "StoreCards/GoldStorageCard.png", 300, "Elixir",false},
-		{"Elixir Storage", "StoreCards/ElixirStorageCard.png", 300,"Elixir", false}
-    };
-}
-
-void Store::createUI() {
-    auto visibleSize = Director::getInstance()->getVisibleSize();
-    Vec2 origin = Director::getInstance()->getVisibleOrigin();
+    // åˆå§‹åŒ–æ•°æ®
+    void initCardData();
+    // åˆ›å»ºUI
+    void createUI();
+    // åˆ›å»ºå¡ç‰‡
+    void createCard(const StoreCardData& data, Vec2 position);
+    // å¤„ç†å¡ç‰‡ç‚¹å‡»
+    void onCardClicked(const StoreCardData& data);
+    void showPurchaseMessage(const std::string& message, Color4B color);
+    void createResourceDisplay();
+    void updateResourceDisplay();
 
 
-    // ´´½¨·µ»Ø°´Å¥
-    auto backButton = ui::Button::create("back.png", "", "");
+    Vector<Sprite*> cardSprites;
+    std::vector<StoreCardData> cardDataList;
+    CardSelectCallback _cardSelectCallback; // å¡ç‰‡é€‰æ‹©å›è°ƒ
+    
+};
 
-    backButton->setPosition(Vec2(visibleSize.width - 60, visibleSize.height - 60));
-    backButton->setScale(0.6f);
-    backButton->addTouchEventListener([&](Ref* sender, ui::Widget::TouchEventType type) {
-        if (type == ui::Widget::TouchEventType::ENDED) {
-            AudioEngine::play2d("click.mp3", false, 0.8f);
-            Director::getInstance()->popScene();
-        }
-        });
-    this->addChild(backButton, 1);
-
-    // ´´½¨¿¨Æ¬Íø¸ñ²¼¾Ö
-    int cardsPerRow = 4;
-    float cardWidth = 280;
-    float cardHeight = 240;
-    float startX = (visibleSize.width - cardsPerRow * cardWidth) / 2 + cardWidth / 2;
-    float startY = visibleSize.height - 400;
-
-    for (int i = 0; i < cardDataList.size(); i++) {
-        int row = i / cardsPerRow;
-        int col = i % cardsPerRow;
-
-        Vec2 position = Vec2(
-            startX + col * cardWidth,
-            startY - row * (cardHeight + 20)
-        );
-
-        createCard(cardDataList[i], position);
-    }
-}
-
-
-
-void Store::createCard(const StoreCardData& data, Vec2 position) {
-    // ´´½¨¿¨Æ¬Í¼±ê
-    auto cardIcon = Sprite::create(data.iconPath);
-    cardIcon->setPosition(Vec2(position.x, position.y + 50));
-    cardIcon->setScale(0.48f);
-
-    // Ìí¼Ó´¥ÃşÊÂ¼ş¼àÌıÆ÷
-    auto touchListener = EventListenerTouchOneByOne::create();
-    touchListener->setSwallowTouches(true);
-    touchListener->onTouchBegan = [cardIcon, this, data](Touch* touch, Event* event) -> bool {
-        if (cardIcon->getBoundingBox().containsPoint(touch->getLocation())) {
-            // ´¥Ãş¿ªÊ¼Ê±ËõĞ¡Ò»µã£¬Ìá¹©·´À¡
-            cardIcon->runAction(ScaleTo::create(0.1f, 0.45f));
-            return true;
-        }
-        return false;
-        };
-
-    touchListener->onTouchEnded = [cardIcon, this, data](Touch* touch, Event* event) {
-        // »Ö¸´´óĞ¡
-        cardIcon->runAction(ScaleTo::create(0.1f, 0.48f));
-
-        // ¼ì²éÊÇ·ñÔÚ¿¨Æ¬ÇøÓòÄÚÊÍ·Å
-        if (cardIcon->getBoundingBox().containsPoint(touch->getLocation())) {
-            AudioEngine::play2d("click.mp3", false, 0.8f);
-            this->onCardClicked(data.cardName);
-        }
-        };
-
-    _eventDispatcher->addEventListenerWithSceneGraphPriority(touchListener, cardIcon);
-
-    this->addChild(cardIcon);
-    cardSprites.pushBack(cardIcon);
-}
-
-void Store::onCardClicked(const std::string& cardName) {
-    // ²¥·Å¹ºÂòÒôĞ§£¨ÔİÊ±ÓÃµã»÷ÒôĞ§´úÌæ£©
-    AudioEngine::play2d("click.mp3", false, 0.8f);
-
-    // Èç¹ûÓĞÉèÖÃ»Øµ÷£¬µ÷ÓÃ»Øµ÷
-    if (_cardSelectCallback) {
-        _cardSelectCallback(cardName);
-    }
-
-    // ·µ»Ø´ó±¾Óª³¡¾°
-    Director::getInstance()->popScene();
-}
+#endif // __STORE_H__
