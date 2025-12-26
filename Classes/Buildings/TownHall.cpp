@@ -1,4 +1,5 @@
 ﻿#include "TownHall.h"
+#include"resources.h"
 
 USING_NS_CC;
 
@@ -36,7 +37,9 @@ bool TownHall::init(const std::string& buildingFile,
     this->setCost(1000);
     this->setHP(400);
 
-
+    _maxCapacity = 2500;
+    capacityList = { 2500,10000,50000 };
+    
 
     int hpValues[] = { 400,800,1600 };
     int upgradeCosts[] = { 1000,4000,0 };
@@ -49,5 +52,20 @@ bool TownHall::init(const std::string& buildingFile,
 
 
     return true;
+
+}
+
+void TownHall::upgrade()
+{
+    Building::upgrade();
+
+	_maxCapacity = capacityList[_level - 1];
+    //建筑管理系统里更新大本营的升级
+    BuildingManager* buildingManager = BuildingManager::getInstance();
+    buildingManager->addTownhallLevel();
+    //资源管理系统更新金币圣水容量的相应增加
+    ResourceManager* resourceManager = ResourceManager::getInstance();
+    resourceManager->updateElixirMaxLimit(_maxCapacity- capacityList[_level-2]);
+    resourceManager->updateGoldMaxLimit(_maxCapacity - capacityList[_level - 2]);
 
 }

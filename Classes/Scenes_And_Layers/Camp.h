@@ -55,15 +55,13 @@ private:
     std::string _currentMapSkin = "others/Camp.png";
 
     void updateBuildingCounts();  // 更新建筑计数
-    bool canBuildMore(const std::string& buildingType);  // 检查是否可以建造更多
-    std::string getBuildingTypeFromCard(const std::string& cardName);  // 卡片名转建筑类型
-    TownHall* getTownHall() const;  // 获取大本营实例
+    
     void showCannotBuildMessage(const std::string& buildingType,
         bool isLimitReached = false,
         int maxCount = 0,
         int currentCount = 0);  // 显示无法建造的提示
 
-    void onExit() override;
+   
 };
 
 #endif // __CAMP_H__

@@ -1,4 +1,3 @@
-
 #include "BuildingActionBar.h"
 #include "Building.h"
 

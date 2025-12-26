@@ -12,6 +12,7 @@
 #include"Wall.h"
 #include"Cannon.h"
 #include "BuildingManager.h"
+#include"resources.h"
 USING_NS_CC;
 
 // 定义Tag常量
@@ -47,7 +48,12 @@ bool Camp::init()
     auto visibleSize = Director::getInstance()->getVisibleSize();
     Vec2 origin = Director::getInstance()->getVisibleOrigin();
 
+    ResourceManager* resourceMgr = ResourceManager::getInstance();
+
+    // 创建资源显示UI（右上角）
+    resourceMgr->createResourceDisplay(this);
     
+   
 
     // 地图精灵初始化
     mapSprite = Sprite::create("others/Camp.png");
@@ -420,11 +426,7 @@ void Camp::createBuildingFromCard(const std::string& cardName) {
     }
 
     // 2. 获取大本营等级
-    int townHallLevel = 1; // 默认
-    TownHall* townHall = getTownHall();
-    if (townHall) {
-        townHallLevel = townHall->getLevel();
-    }
+	int townHallLevel = buildingManager->getTownhallLevel();
 
     // 3. 检查是否解锁
     if (!buildingManager->isBuildingUnlocked(buildingType, townHallLevel)) {
@@ -508,47 +510,6 @@ void Camp::updateBuildingCounts() {
 
 }
 
-TownHall* Camp::getTownHall() const {
-    for (Building* building : _allBuildings) {
-        TownHall* townHall = dynamic_cast<TownHall*>(building);
-        if (townHall) {
-            return townHall;
-        }
-    }
-    return nullptr;
-}
-
-
-
-bool Camp::canBuildMore(const std::string& buildingType) {
-    TownHall* townHall = getTownHall();
-    if (!townHall) {
-        CCLOG("错误: 未找到大本营");
-        return false;
-    }
-
-    int currentLevel = townHall->getLevel();
-
-    // 使用BuildingManager检查
-    BuildingManager* manager = BuildingManager::getInstance();
-    int maxAllowed = manager->getMaxCount(buildingType, currentLevel);
-
-    if (maxAllowed <= 0) {
-        CCLOG("建筑 %s 在当前大本营等级(%d)不可建造", buildingType.c_str(), currentLevel);
-        return false;
-    }
-
-    // 检查当前已有数量
-    int currentCount = _currentBuildingCounts[buildingType];
-
-    return currentCount < maxAllowed;
-}
-
-std::string Camp::getBuildingTypeFromCard(const std::string& cardName) {
-    // 使用BuildingManager进行转换
-    BuildingManager* manager = BuildingManager::getInstance();
-    return manager->cardNameToType(cardName);
-}
 
 void Camp::showCannotBuildMessage(const std::string& buildingType,
     bool isLimitReached,
@@ -557,10 +518,3 @@ void Camp::showCannotBuildMessage(const std::string& buildingType,
     ;
 }
 
-void Camp::onExit() {
-   
-
-   
-
-    Scene::onExit();
-}

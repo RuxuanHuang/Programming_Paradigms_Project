@@ -2,6 +2,8 @@
 #define __TOWNHALL_H__
 
 #include "Building.h"
+#include"BuildingManager.h"
+#include"vector"
 
 class TownHall : public Building
 {
@@ -19,6 +21,11 @@ protected:
     virtual bool init(const std::string& buildingFile,
         const std::string turfFile,
         float buildingScale) override;
+
+    void upgrade() override;
+    int _maxCapacity;       //资源最大存储量
+	std::vector<int> capacityList;
+	
 };
 
 #endif // __TOWNHALL_H__

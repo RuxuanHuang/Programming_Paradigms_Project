@@ -1,5 +1,6 @@
 #include "Building.h"
 #include "ui/UILoadingBar.h"
+#include"resources.h"
 
 USING_NS_CC;
 
@@ -16,9 +17,6 @@ public:
     void setMaxStorage(int maxStorage) { _maxStorage = maxStorage; }
     int getMaxStorage() const { return _maxStorage; }
 
-    void setCurrentStorage(int storage) { _currentStorage = storage; }
-    int getCurrentStorage() const { return _currentStorage; }
-
     virtual void upgrade() override;
 
 protected:
@@ -31,7 +29,7 @@ protected:
 
     // ========== 存储容量相关 ==========
     int _maxStorage;           // 最大存储容量
-    int _currentStorage;       // 当前存储量
+    
     std::vector<int>storageCapacityList;
 
 };
@@ -51,6 +49,7 @@ protected:
     virtual bool init(const std::string& buildingFile,
         const std::string turfFile,
         float buildingScale) override;
+    void upgrade() override;
 };
 
 class ElixirStorage : public ResourceStorageBuilding
@@ -68,4 +67,5 @@ protected:
     virtual bool init(const std::string& buildingFile,
         const std::string turfFile,
         float buildingScale) override;
+    void upgrade() override;
 };

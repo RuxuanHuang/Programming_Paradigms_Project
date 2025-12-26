@@ -15,7 +15,8 @@ struct BuildingConfig {
     std::string texturePath;    // 默认纹理路径
     int unlockLevel;            // 解锁所需的大本营等级
     int maxCount;               // 最大建造数量
-    std::vector<int> levelLimits; // 每个大本营等级对应的最大数量
+    std::vector<int> numLimits; // 每个大本营等级对应的最大数量
+    std::vector<int> upgradeLimits; // 每个大本营等级允许的最大建筑等级
     int width;                  // 网格宽度
     int height;                 // 网格高度
 };
@@ -54,13 +55,17 @@ public:
         const cocos2d::Vector<Building*>& existingBuildings,
         Building* newBuilding) const;
     bool BuildingManager::isPositionAvailable(int gridX, int gridY,
-         Building* building,
+        Building* building,
         const cocos2d::Vector<Building*>& existingBuildings) const;
 
     // 升级相关
-    std::string getNextLevelTexture(const std::string& buildingType, int currentLevel) const;
+    int getMaxLevel(const std::string& buildingType, int townHallLevel) const;
     bool canUpgradeBuilding(const std::string& buildingType, int currentLevel, int townHallLevel) const;
 
+
+
+    void addTownhallLevel() { _townhallLevel++; }
+    int getTownhallLevel() { return _townhallLevel; }
 private:
     BuildingManager();
     ~BuildingManager();
@@ -90,7 +95,10 @@ private:
     Building* createElixirCollector(const std::string& texturePath);
     Building* createGoldStorage(const std::string& texturePath);
     Building* createElixirStorage(const std::string& texturePath);
-   
+
+
+    int _townhallLevel = 1;
+    
 };
 
 #endif // __BUILDING_MANAGER_H__

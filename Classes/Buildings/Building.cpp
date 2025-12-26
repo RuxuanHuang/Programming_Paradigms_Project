@@ -574,6 +574,14 @@ void Building::onInfoButtonClicked()
 void Building::onUpgradeButtonClicked()
 {
     CCLOG("升级按钮: %s Lv.%d", _buildingName.c_str(), _level);
+    BuildingManager* buildingManager = BuildingManager::getInstance();
+    int townHallLevel = buildingManager->getTownhallLevel();
+	if (!buildingManager->canUpgradeBuilding(_buildingType, _level, townHallLevel)) {
+		CCLOG("无法升级建筑 %s，可能未解锁或达到最大等级", _buildingName.c_str());
+		return;
+	}
+
+
     upgrade();  // 直接调用升级
 }
 
@@ -610,7 +618,7 @@ void Building::upgrade()
     if (_isSelected && _infoLabel) {
         updateInfoLabel();
     }
-    // 假设升级后最大血量变化
+    // 升级后最大血量变化
     _HP = _upgradeSprites[_level]._hp;
     _currentHP = _HP; // 升级通常回复满血
 

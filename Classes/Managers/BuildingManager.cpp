@@ -49,34 +49,36 @@ void BuildingManager::initBuildingConfigs() {
     // 定义所有建筑配置
     std::vector<BuildingConfig> configs = {
        
-
+        //大本营
+        {"townhall", "TownHall", "Town Hall", "Town_hall/Town_hall1.png",
+        1, 1, {1,1,1},{2,3,4}, 4, 4},
         // 防御建筑
         {"cannon", "Cannon", "Cannon", "Cannon/Cannon1.png",
-        1, 2, {1,2,2}, 3, 3},
+        1, 2, {1,2,2},{2,3,4}, 3, 3},
 
         {"archertower", "ArcherTower", "Archer Tower", "Archer_Tower/Archer_Tower1.png",
-        2, 1, {0,1,1}, 3, 3},
+        2, 1, {0,1,1},{0,2,3}, 3, 3},
 
         // 城墙
         {"wall", "Wall", "Wall", "Wall/Wall1.png",
-        1, 75, {25,50,75}, 1, 1},
+        1, 75, {25,50,75}, {1,2,3},1, 1},
 
         // 资源建筑
         {"goldmine", "GoldMine", "Gold Mine", "Gold_Mine/Gold_Mine1.png",
-            1, 3, {1,2,3}, 3, 3},
+            1, 3, {1,2,3},{2,4,6}, 3, 3},
 
         {"elixircollector", "ElixirCollector", "Elixir Collector", "Elixir_Collector/Elixir_Collector1.png",
-            1, 3, {1,2,3}, 3, 3},
+            1, 3, {1,2,3}, {2,4,6},3, 3},
 
         {"goldstorage", "GoldStorage", "Gold Storage", "Gold_Storage/Gold_Storage1.png",
-            1, 2, {1,1,2}, 3, 3},
+            1, 2, {1,1,2},{1,3,6}, 3, 3},
 
         {"elixirstorage", "ElixirStorage", "Elixir Storage", "Elixir_Storage/Elixir_Storage1.png",
-            1, 2, {1,1,2}, 3, 3},
+            1, 2, {1,1,2},{1,3,6}, 3, 3},
 
         // 军队建筑
         {"armycamp", "ArmyCamp", "Army Camp", "Army_Camp/Army_Camp1.png",
-        1, 2, {1,1,2}, 4, 4},
+        1, 2, {1,1,2},{1,2,3} ,4, 4},
     };
 
     // 存储配置并建立索引
@@ -111,8 +113,21 @@ int BuildingManager::getMaxCount(const std::string& buildingType, int townHallLe
     if (townHallLevel > 3) townHallLevel = 3;
 
     // 返回该大本营等级对应的最大数量
-    return config->levelLimits[townHallLevel - 1];
+    return config->numLimits[townHallLevel - 1];
 }
+
+int BuildingManager::getMaxLevel(const std::string& buildingType, int townHallLevel) const {
+    const BuildingConfig* config = getBuildingConfig(buildingType);
+    if (!config) return 0;
+
+    if (townHallLevel < 1) townHallLevel = 1;
+    if (townHallLevel > 3) townHallLevel = 3;
+
+    // 返回该大本营等级对应的最大等级
+    return config->upgradeLimits[townHallLevel - 1];
+}
+
+
 
 bool BuildingManager::canBuildMore(const std::string& buildingType, int townHallLevel, int currentCount) const {
     int maxCount = getMaxCount(buildingType, townHallLevel);
@@ -257,7 +272,8 @@ Building* BuildingManager::createGoldStorage(const std::string& texturePath) {
     auto goldStorage = GoldStorage::create(texturePath);
     if (goldStorage) {
         goldStorage->setBuildingType("GoldStorage");
-        
+        ResourceManager* resourceManager = ResourceManager::getInstance();
+        resourceManager->updateGoldMaxLimit(goldStorage->getMaxStorage());
     }
     return goldStorage;
 }
@@ -266,12 +282,12 @@ Building* BuildingManager::createElixirStorage(const std::string& texturePath) {
     auto elixirStorage = ElixirStorage::create(texturePath);
     if (elixirStorage) {
         elixirStorage->setBuildingType("ElixirStorage");
-        
+        ResourceManager* resourceManager = ResourceManager::getInstance();
+        resourceManager->updateElixirMaxLimit(elixirStorage->getMaxStorage());
     }
     return elixirStorage;
 }
 
-// BuildingManager.cpp
 Vec2 BuildingManager::findAvailablePosition(Node* mapNode,
     const cocos2d::Vector<Building*>& existingBuildings,
     Building* newBuilding) const {
@@ -321,31 +337,13 @@ bool BuildingManager::isPositionAvailable(int gridX, int gridY,
     return true;
 }
 
-// 升级相关方法
-std::string BuildingManager::getNextLevelTexture(const std::string& buildingType, int currentLevel) const {
-    const BuildingConfig* config = getBuildingConfig(buildingType);
-    if (!config) return "";
 
-    
-    std::string basePath;
-    size_t pos = config->texturePath.find_last_of("/");
-    if (pos != std::string::npos) {
-        basePath = config->texturePath.substr(0, pos + 1);
-    }
-
-    std::string baseName;
-    pos = config->texturePath.find_last_of(".");
-    if (pos != std::string::npos) {
-        baseName = config->texturePath.substr(0, pos - 1); // 去掉数字和扩展名
-    }
-
-    int nextLevel = currentLevel + 1;
-    return StringUtils::format("%s%s%d.png", basePath.c_str(), baseName.c_str(), nextLevel);
-}
 
 bool BuildingManager::canUpgradeBuilding(const std::string& buildingType, int currentLevel, int townHallLevel) const {
     const BuildingConfig* config = getBuildingConfig(buildingType);
-    if (!config) return false;
+    int maxLevel = getMaxLevel(buildingType, townHallLevel);
+    if (maxLevel <= 0) return false;
 
-    ;
+    return currentLevel < maxLevel;
 }
+
