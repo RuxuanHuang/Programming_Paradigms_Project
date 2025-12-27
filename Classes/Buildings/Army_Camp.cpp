@@ -1,4 +1,5 @@
 #include "Army_Camp.h"
+
 USING_NS_CC;
 
 ArmyCamp* ArmyCamp::create(const std::string& buildingFile,
@@ -32,7 +33,7 @@ bool ArmyCamp::init(const std::string& buildingFile,
     this->setBuildingSize(4);
     this->setCost(2000);
     this->setHP(100);
-
+    _costType = "Elixir";
     int hpValues[] = { 100,150,200 };
     int upgradeCosts[] = { 2000,15000,0 };
     // 3. 设置等级信息
@@ -53,4 +54,13 @@ void ArmyCamp::upgrade()
     Building::upgrade();
 
     _populationCapcity = populationCapacityList[_level - 1];
+    auto populationMgr = PopulationManager::getInstance();
+	populationMgr->addToTotalPopulation(_populationCapcity- populationCapacityList[_level-2]);
+}
+
+std::vector<std::pair<std::string, std::string>> ArmyCamp::getSpecificInfoItems()
+{
+	return {
+		{"Population Capacity", std::to_string(_populationCapcity)}
+	};
 }

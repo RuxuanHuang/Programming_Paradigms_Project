@@ -14,14 +14,12 @@ class Building;
 class BuildingActionBar : public Node
 {
 public:
-    //static BuildingActionBar* getInstance();
-    //static void destroyInstance();
     CREATE_FUNC(BuildingActionBar);
     void showForBuilding(Building* building);
     void showForTownHall(Building* building);
     void hide();
 
-    // 新增：设置切换外观按钮的回调（由Camp设置）
+    // 设置切换外观按钮的回调（由Camp设置）
     void setChangeSkinCallback(const std::function<void()>& callback);
     // 原有回调设置
     void setCallbacks(const std::function<void()>& infoCallback,
@@ -37,7 +35,12 @@ private:
     void setupButtonCallbacks();
 
 
-    //static BuildingActionBar* _instance;
+    Sprite* _resourceIcon; // 资源图标
+
+    void createResourceIcon();
+    void updateResourceIcon(int cost, const std::string& resourceType);
+    std::string getResourceIconPath(const std::string& resourceType) const;
+
     Building* _currentBuilding;
 
     Button* _infoButton;     // 只显示Information.png

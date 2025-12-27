@@ -217,7 +217,7 @@ bool ResourceManager::canAffordGold(int goldCost) const
 
 bool ResourceManager::canAffordElixir(int elixirCost) const
 {
-    return m_elixir->canAfford(elixirCost);  // 改为m_elixir
+    return m_elixir->canAfford(elixirCost);  
 }
 
 bool ResourceManager::makeGoldPurchase(int goldCost, bool allowZero)
@@ -405,18 +405,6 @@ void ResourceManager::updateResourceDisplay()
     }
 }
 
-void ResourceManager::removeResourceDisplay()
-{
-    if (m_displayNode && m_displayNode->getParent()) {
-        m_displayNode->removeFromParent();
-    }
-
-    m_displayNode = nullptr;
-    m_goldLabel = nullptr;
-    m_elixirLabel = nullptr;
-    m_goldIcon = nullptr;
-    m_elixirIcon = nullptr;
-}
 
 void ResourceManager::updateGoldMaxLimit(int addAmount)
 {
@@ -435,4 +423,16 @@ void ResourceManager::updateElixirMaxLimit(int addAmount)
 
     // 更新UI显示
     updateResourceDisplay();
+}
+
+void ResourceManager::removeResourceDisplay()
+{
+    
+    m_displayNode = nullptr;
+    m_goldLabel = nullptr;
+    m_elixirLabel = nullptr;
+    m_goldIcon = nullptr;
+    m_elixirIcon = nullptr;
+
+    CCLOG("Resource display pointers cleared");
 }

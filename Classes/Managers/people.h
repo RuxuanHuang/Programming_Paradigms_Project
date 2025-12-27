@@ -54,6 +54,7 @@ public:
     // 获取/设置总人口
     int getTotalPopulation() const { return m_totalPopulation; }
     void setTotalPopulation(int population) { m_totalPopulation = population; }
+    void addToTotalPopulation(int amount) { m_totalPopulation += amount; }
 
     // 获取已分配人口
     int getAssignedPopulation() const;

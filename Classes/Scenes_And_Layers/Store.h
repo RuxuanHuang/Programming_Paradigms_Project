@@ -46,6 +46,11 @@ private:
     void showPurchaseMessage(const std::string& message, Color4B color);
     void createResourceDisplay();
     void updateResourceDisplay();
+
+    //ÅÐ¶ÏÄÜ·ñ¹ºÂò
+	bool canPurchase(const StoreCardData& data);
+	bool checkBuildingNum(const StoreCardData& data);
+	bool checkCost(const StoreCardData& data);
    
 
     Vector<Sprite*> cardSprites;

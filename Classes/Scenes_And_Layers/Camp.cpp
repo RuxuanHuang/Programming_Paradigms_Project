@@ -13,6 +13,7 @@
 #include"Cannon.h"
 #include "BuildingManager.h"
 #include"resources.h"
+#include"MapTools.h"
 USING_NS_CC;
 
 // 定义Tag常量
@@ -108,13 +109,13 @@ bool Camp::init()
         townHall->setTilePosition(mapSprite, 0.5, 0.5);
         mapSprite->addChild(townHall, 1);
         _building = townHall;
-        _allBuildings.pushBack(townHall);
-		
-
+		manager->addBuilding(townHall);
+        townHall->setBuildingType("TownHall");
+		setBuildingOccupy(townHall, true);
         // 显示网格范围
          //townHall->drawDebugMapRange(mapSprite);
     }
-
+    
     auto BuilderHut = BuildersHut::create("others/Builders_Hut1.png");
     if (BuilderHut == nullptr)
     {
@@ -124,9 +125,11 @@ bool Camp::init()
         BuilderHut->setTilePosition(mapSprite, 5.5, 5.5);
         mapSprite->addChild(BuilderHut, 1);
         _building = BuilderHut;
-        _allBuildings.pushBack(BuilderHut);
+        manager->addBuilding(BuilderHut);
+        BuilderHut->setBuildingType("BuilderHut");
+		setBuildingOccupy(BuilderHut, true);
     }
-    townHall->setBuildingType("TownHall");
+   
 
     auto StoreButton = Button::create("Buttons/StoreButton.png","","");
     if (StoreButton) {
@@ -140,7 +143,7 @@ bool Camp::init()
             });
 
     }
-    BuilderHut->setBuildingType("BuilderHut");
+    
   
     
     // 场景全局/地图事件监听器 (处理滚轮和非房子区域的拖动)
@@ -153,7 +156,6 @@ bool Camp::init()
 
     // 注册监听器 (处理滚轮和地图拖动)
     _eventDispatcher->addEventListenerWithSceneGraphPriority(_mouseListener, this);
-    updateBuildingCounts();
     return true;
 }
 
@@ -199,8 +201,12 @@ void Camp::onMapMouseDown(Event* event)
         return;
 
     // 建筑优先
-    if (_selectedBuilding && _selectedBuilding->isDragging())
+    if (_selectedBuilding && _selectedBuilding->isDragging()) {
+        
         return;
+    }
+
+        
 
     _isMapDragging = true;
     _mapMoved = false;  // 重置
@@ -220,7 +226,21 @@ void Camp::onMapMouseUp(Event* event)
 
     // 只有“点击空白”才取消选中
     if (!_mapMoved) {
-        clearSelection();
+        if (_selectedBuilding) {
+            // 有选中的建筑，检查其位置是否合法
+            if (isBuildingPositionValid(_selectedBuilding)) {
+                setBuildingOccupy(_selectedBuilding,true);
+                clearSelection();
+            }
+            else {
+                ;
+                
+            }
+        }
+        else {
+            // 没有选中的建筑，就是普通的空白点击
+            clearSelection();
+        }
     }
 }
 
@@ -253,7 +273,7 @@ void Camp::onMapMouseMove(Event* event)
 
 
 // ----------------------------------------------------------------------------------
-// MARK: - 边界限制逻辑（保持不变）
+// MARK: - 边界限制逻辑
 // ----------------------------------------------------------------------------------
 
 void Camp::limitMapPos(Sprite* sprite)
@@ -329,7 +349,7 @@ void Camp::selectBuilding(Building* building)
         // 标记建筑为选中
         _selectedBuilding->setSelected(true);
 
-        // ========== 别是否为大本营 ==========
+        // 是否为大本营
         // 通过动态类型转换判断
         TownHall* townHall = dynamic_cast<TownHall*>(_selectedBuilding);
         if (townHall) {
@@ -369,13 +389,12 @@ void Camp::changeMapSkin()
 
     // 切换地图皮肤
     if (_currentMapSkin == "others/Camp.png") {
-        _currentMapSkin = "others/Campaaa.png"; // 你的第二个地图图片
+        _currentMapSkin = "others/Campaaa.png"; 
     }
     else {
         _currentMapSkin = "others/Camp.png";
     }
 
-    // 核心：替换纹理（不重建Sprite，保留所有建筑子节点）
     auto newTexture = Director::getInstance()->getTextureCache()->addImage(_currentMapSkin);
     if (newTexture) {
         mapSprite->setTexture(newTexture);
@@ -395,9 +414,7 @@ void Camp::changeMapSkin()
 void Camp::enterBattleScene()
 {
     // 切换到战斗场景
-    auto battleScene = BattleScene1::createScene(); 
-
-    
+    auto battleScene = BattleScene1::createScene();  
     Director::getInstance()->pushScene(battleScene);
    
 }
@@ -418,29 +435,6 @@ void Camp::openStore() {
 void Camp::createBuildingFromCard(const std::string& cardName) {
     BuildingManager* buildingManager = BuildingManager::getInstance();
 
-    // 1. 获取建筑类型
-    std::string buildingType = buildingManager->cardNameToType(cardName);
-    if (buildingType.empty()) {
-        CCLOG("未知的卡片名称: %s", cardName.c_str());
-        return;
-    }
-
-    // 2. 获取大本营等级
-	int townHallLevel = buildingManager->getTownhallLevel();
-
-    // 3. 检查是否解锁
-    if (!buildingManager->isBuildingUnlocked(buildingType, townHallLevel)) {
-        showCannotBuildMessage(buildingType, false, townHallLevel);
-        return;
-    }
-
-    // 4. 检查数量限制
-    int currentCount = _currentBuildingCounts[buildingType];
-    if (!buildingManager->canBuildMore(buildingType, townHallLevel, currentCount)) {
-        int maxCount = buildingManager->getMaxCount(buildingType, townHallLevel);
-        showCannotBuildMessage(buildingType, true, maxCount, currentCount);
-        return;
-    }
     Building* newBuilding = buildingManager->createBuildingFromCard(cardName);
     if (!newBuilding) {
         CCLOG("错误: 创建建筑失败: %s", cardName.c_str());
@@ -452,9 +446,9 @@ void Camp::createBuildingFromCard(const std::string& cardName) {
         newBuilding->setTilePosition(mapSprite, 0, 0);
         // 添加到地图上
         mapSprite->addChild(newBuilding, 1);
-        // 添加到存储向量中（关键步骤！）
-        _allBuildings.pushBack(newBuilding);
-        // 延迟一帧创建操作栏，确保我们已经完全回到了Camp场景
+        // 添加到存储向量中
+        buildingManager->addBuilding(newBuilding);
+        // 延迟一帧创建操作栏，确保已经完全回到了Camp场景
         this->scheduleOnce([this, newBuilding](float dt) {
             // 再次检查建筑是否还存在
             if (newBuilding && newBuilding->getParent()) {
@@ -478,43 +472,130 @@ void Camp::createBuildingFromCard(const std::string& cardName) {
                 CCLOG("警告：建筑在延迟回调中无效");
             }
             }, 0.01f, "create_action_bar_" + cardName); // 使用很小的延迟
-
-        CCLOG("成功创建建筑: %s，当前总建筑数: %zu", cardName.c_str(), _allBuildings.size());
-        updateBuildingCounts();
     }
     else {
         CCLOG("创建建筑失败，可能图片路径错误: %s", cardName.c_str());
     }
 }
-void Camp::updateBuildingCounts() {
-    // 清空计数
-    _currentBuildingCounts.clear();
-
-    // 遍历所有建筑
-    for (Building* building : _allBuildings) {
-        if (!building) continue;
-
-        std::string type = building->getBuildingType();
 
 
-        // 统计数量
-        if (_currentBuildingCounts.find(type) == _currentBuildingCounts.end()) {
-            // 第一次出现，初始化为1
-            _currentBuildingCounts[type] = 1;
+// 场景进入时
+void Camp::onEnter()
+{
+    Scene::onEnter();
+
+    // 创建资源显示
+    ResourceManager::getInstance()->createResourceDisplay(this);
+}
+
+// 场景退出时
+void Camp ::onExit()
+{
+    // 不清除显示，让ResourceManager只清空指针
+    ResourceManager::getInstance()->removeResourceDisplay();
+
+    Scene::onExit();
+}
+
+bool Camp::isBuildingPositionValid(Building* building)
+{
+    if (!building) return false;
+
+    // 1. 获取建筑占用的所有网格坐标
+    std::vector<Vec2> occupiedTiles = getBuildingOccupiedTiles(building);
+
+    // 2. 检查每个网格是否被占用
+    auto buildingmanager = BuildingManager::getInstance();
+    for (const Vec2& tile : occupiedTiles) {
+        if (!buildingmanager->tileIsEmpty(tile.x, tile.y)) {
+            return false;
         }
-        else {
-            // 已经存在，数量加1
-            _currentBuildingCounts[type]++;
+    }
+    return true;
+}
+
+std::vector<Vec2> Camp::getBuildingOccupiedTiles(Building* building)
+{
+    std::vector<Vec2> occupiedTiles;
+
+    if (!building || !building->getParent()) {
+        return occupiedTiles;
+    }
+
+    Vec2 centerTile = building->getTilePosition(mapSprite);
+
+    
+
+
+    // 获取建筑大小
+    int size = building->getSize();
+
+    // 计算起始网格坐标（假设建筑居中）
+    int startX = static_cast<int>(centerTile.x) - size / 2;
+    int startY = static_cast<int>(centerTile.y) - size / 2;
+
+    if (size % 2 == 1) {
+        int offset = size / 2; 
+
+        for (int dy = -offset; dy <= offset; dy++) {
+            for (int dx = -offset; dx <= offset; dx++) {
+                int gridX = static_cast<int>(centerTile.x) + dx;
+                int gridY = static_cast<int>(centerTile.y) + dy;
+
+                occupiedTiles.push_back(Vec2(gridX + 21, gridY + 21));
+            }
+        }
+    }
+    else {
+        int startX = static_cast<int>(floor(centerTile.x - (size / 2 - 0.5)));
+        int startY = static_cast<int>(floor(centerTile.y - (size / 2 - 0.5)));
+
+        for (int dy = 0; dy < size; dy++) {
+            for (int dx = 0; dx < size; dx++) {
+                int gridX = startX + dx;
+                int gridY = startY + dy;
+
+                occupiedTiles.push_back(Vec2(gridX + 21, gridY + 21));
+            }
         }
     }
 
+    return occupiedTiles;
 }
+void Camp::setBuildingOccupy(Building* building,bool occupy) {
 
+    Vec2 centerTile = building->getTilePosition(mapSprite);
 
-void Camp::showCannotBuildMessage(const std::string& buildingType,
-    bool isLimitReached,
-    int maxCount,
-    int currentCount) {
-    ;
+    // 获取建筑大小
+    int size = building->getSize();
+
+    // 计算起始网格坐标（假设建筑居中）
+    int startX = static_cast<int>(centerTile.x) - size / 2;
+    int startY = static_cast<int>(centerTile.y) - size / 2;
+    auto buildingManager = BuildingManager::getInstance();
+    if (size % 2 == 1) {
+        int offset = size / 2;
+
+        for (int dy = -offset; dy <= offset; dy++) {
+            for (int dx = -offset; dx <= offset; dx++) {
+                int gridX = static_cast<int>(centerTile.x) + dx;
+                int gridY = static_cast<int>(centerTile.y) + dy;
+
+				buildingManager->setGrid(gridX + 21, gridY + 21, occupy);
+            }
+        }
+    }
+    else {
+        int startX = static_cast<int>(floor(centerTile.x - (size / 2 - 0.5)));
+        int startY = static_cast<int>(floor(centerTile.y - (size / 2 - 0.5)));
+
+        for (int dy = 0; dy < size; dy++) {
+            for (int dx = 0; dx < size; dx++) {
+                int gridX = startX + dx;
+                int gridY = startY + dy;
+
+                buildingManager->setGrid(gridX + 21, gridY + 21, occupy);
+            }
+        }
+    }
 }
-

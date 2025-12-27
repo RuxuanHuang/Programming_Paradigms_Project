@@ -35,7 +35,9 @@ bool BuildersHut::init(const std::string& buildingFile,
     this->setBuildingSize(2);
     this->setBuildingScale(0.9f);
     this->setMaxLevel(1);
-
+    this->setHP(250);
+    _upgradeSprites[1] = levelInformation{ 0, 250, "others/Builders_Hut1.png" };
+   
    
 
     return true;

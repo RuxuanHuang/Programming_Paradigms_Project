@@ -50,22 +50,32 @@ public:
     std::vector<std::string> getAvailableBuildings(int townHallLevel) const;
     bool isBuildingUnlocked(const std::string& buildingType, int townHallLevel) const;
 
-    // 网格管理
-    cocos2d::Vec2 findAvailablePosition(cocos2d::Node* mapNode,
-        const cocos2d::Vector<Building*>& existingBuildings,
-        Building* newBuilding) const;
-    bool BuildingManager::isPositionAvailable(int gridX, int gridY,
-        Building* building,
-        const cocos2d::Vector<Building*>& existingBuildings) const;
+    // ===========网格管理
+    // 初始化网格（全部设为false）
+    void initGrid();
+
+    // 设置网格状态
+    void setGrid(int x, int y, bool occupied);
+
+    // 获取网格状态
+    bool getGrid(int x, int y) const;
 
     // 升级相关
     int getMaxLevel(const std::string& buildingType, int townHallLevel) const;
     bool canUpgradeBuilding(const std::string& buildingType, int currentLevel, int townHallLevel) const;
 
-
-
+    //大本营等级相关
     void addTownhallLevel() { _townhallLevel++; }
     int getTownhallLevel() { return _townhallLevel; }
+
+    //添加建筑
+    void addBuilding(Building* newBuilding); 
+    int getCurrentCountForType(const std::string& buildingType) const;
+
+    bool tileIsEmpty(int x, int y) {
+		return !getGrid(x, y);
+    }
+	
 private:
     BuildingManager();
     ~BuildingManager();
@@ -83,9 +93,6 @@ private:
     // 初始化建筑配置
     void initBuildingConfigs();
 
-    // 初始化数量限制
-    void initBuildingLimits();
-
     // 创建具体建筑
     Building* createCannon(const std::string& texturePath);
     Building* createArcherTower(const std::string& texturePath);
@@ -98,7 +105,16 @@ private:
 
 
     int _townhallLevel = 1;
-    
+
+
+    cocos2d::Vector<Building*> _allBuildings;  // 存储所有建筑的向量
+    std::map<std::string, int> _currentBuildingCounts;  // 建筑类型 & 当前数量
+
+
+    static const int GRID_SIZE = 42;
+    // 网格占用状态数组
+    bool _grid[GRID_SIZE][GRID_SIZE];
+   
 };
 
 #endif // __BUILDING_MANAGER_H__

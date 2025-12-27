@@ -211,6 +211,14 @@ void ResourceCollector::tryCollectResource() {
     }
 }
 
+std::vector<std::pair<std::string, std::string>> ResourceCollector::getSpecificInfoItems()
+{
+    return {
+        {"Production", std::to_string(static_cast<int>(_productionPerHour)) + "/h"},
+        {"Storage", std::to_string(static_cast<int>(_currentStored)) + "/" + std::to_string(static_cast<int>(_maxCapacity))}
+    };
+}
+
 GoldMine* GoldMine::create(const std::string& buildingFile, bool isHomeTown, const std::string turfFile, float buildingScale)
 {
 
@@ -235,7 +243,7 @@ bool GoldMine::init(const std::string& buildingFile, const std::string turfFile,
 
     // 2. 设置金矿特有的属性
     _buildingName = "Gold Mine";
-
+    _costType = "Elixir";
 
 
     setupCollectIcon("others/GoldIcon.png");

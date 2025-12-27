@@ -48,7 +48,12 @@ bool ResourceStorageBuilding::init(const std::string& buildingFile,
     return true;
 }
 
-
+std::vector<std::pair<std::string, std::string>> ResourceStorageBuilding::getSpecificInfoItems()
+{
+    return {
+        {"Capacity", std::to_string(static_cast<int>(_maxStorage))}
+    };
+}
 
 
 void ResourceStorageBuilding::upgrade()
@@ -88,6 +93,7 @@ bool GoldStorage::init(const std::string& buildingFile,
 
     // 2. 设置基本属性
     this->setBuildingName("Gold Storage");
+    _costType = "Elixir";
 
     // 3. 设置等级信息
     for (int i = 1; i <= 6; i++) {

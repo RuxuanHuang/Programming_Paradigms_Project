@@ -29,7 +29,7 @@ protected:
 
     // ========== 存储容量相关 ==========
     int _maxStorage;           // 最大存储容量
-    
+    std::vector<std::pair<std::string, std::string>> getSpecificInfoItems()override;
     std::vector<int>storageCapacityList;
 
 };

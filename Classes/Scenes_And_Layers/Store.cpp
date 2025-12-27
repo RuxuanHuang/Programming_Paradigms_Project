@@ -166,73 +166,98 @@ void Store::createCard(const StoreCardData& data, Vec2 position) {
     cardSprites.pushBack(cardIcon);
 }
 
-void Store::onCardClicked(const StoreCardData& data) {
-    // 播放购买音效
-    AudioEngine::play2d("click.mp3", false, 0.8f);
+bool Store::checkBuildingNum(const StoreCardData& data)
+{
+    BuildingManager* buildingManager = BuildingManager::getInstance();
+    // 获取建筑类型
+    std::string buildingType = buildingManager->cardNameToType(data.cardName);
 
-    // 获取资源管理器
+    // 获取大本营等级
+    int townHallLevel = buildingManager->getTownhallLevel();
+
+    // 检查是否解锁
+    if (!buildingManager->isBuildingUnlocked(buildingType, townHallLevel)) {
+        showPurchaseMessage("Update Town Hall to unlock the building!", Color4B::RED);
+        return false;
+    }
+
+    // 检查数量限制
+    int currentCount = buildingManager->getCurrentCountForType(buildingType);
+    if (!buildingManager->canBuildMore(buildingType, townHallLevel, currentCount)) {
+        showPurchaseMessage("Update Town Hall to build more!", Color4B::RED);
+        return false;
+    }
+    return true;
+}
+
+
+bool Store::checkCost(const StoreCardData& data) {
     auto resourceManager = ResourceManager::getInstance();
-    bool purchaseSuccess = false;
-
     // 根据货币类型进行购买判断
     if (data.price == 0) {
         // 免费物品
-        purchaseSuccess = true;
+        return true;
         CCLOG("Acquired free item: %s", data.cardName.c_str());
         showPurchaseMessage("Item Acquired!", Color4B::GREEN);
     }
     else if (data.costType == "Gold") {
         // 检查金币是否足够
         if (resourceManager->canAffordGold(data.price)) {
-            // 尝试购买
-            purchaseSuccess = resourceManager->makeGoldPurchase(data.price);
-            if (purchaseSuccess) {
-                CCLOG("Purchased %s for %d gold", data.cardName.c_str(), data.price);
-                // 显示购买成功提示
-                showPurchaseMessage("Purchase Successful!", Color4B::GREEN);
-            }
-            else {
-                CCLOG("Failed to purchase %s", data.cardName.c_str());
-                showPurchaseMessage("Purchase Failed!", Color4B::RED);
-            }
+            // 购买
+            resourceManager->makeGoldPurchase(data.price);
+            CCLOG("Purchased %s for %d gold", data.cardName.c_str(), data.price);
+            // 显示购买成功提示
+            showPurchaseMessage("Successful Purchase!", Color4B::GREEN);
+            return true;
         }
         else {
             // 金币不足
             showPurchaseMessage("Not Enough Gold!", Color4B::RED);
             CCLOG("Not enough gold to purchase %s. Need: %d, Have: %d",
                 data.cardName.c_str(), data.price, resourceManager->getGoldAmount());
-            return; // 资源不足，不继续执行
+            return false; // 资源不足，不继续执行
         }
     }
     else if (data.costType == "Elixir") {
         // 检查圣水是否足够
         if (resourceManager->canAffordElixir(data.price)) {
             // 尝试购买
-            purchaseSuccess = resourceManager->makeElixirPurchase(data.price);
-            if (purchaseSuccess) {
-                CCLOG("Purchased %s for %d elixir", data.cardName.c_str(), data.price);
-                showPurchaseMessage("Purchase Successful!", Color4B::GREEN);
-            }
-            else {
-                CCLOG("Failed to purchase %s", data.cardName.c_str());
-                showPurchaseMessage("Purchase Failed!", Color4B::RED);
-            }
+            resourceManager->makeElixirPurchase(data.price);
+            CCLOG("Purchased %s for %d elixir", data.cardName.c_str(), data.price);
+            showPurchaseMessage("Successful Purchase!", Color4B::GREEN);
+            return true;
         }
         else {
             // 圣水不足
             showPurchaseMessage("Not Enough Elixir!", Color4B::RED);
             CCLOG("Not enough elixir to purchase %s. Need: %d, Have: %d",
                 data.cardName.c_str(), data.price, resourceManager->getElixirAmount());
-            return; // 资源不足，不继续执行
+            return false; // 资源不足，不继续执行
         }
     }
     else {
-        // 未知货币类型
-        showPurchaseMessage("Unknown currency type!", Color4B::RED);
-        CCLOG("Unknown cost type: %s for card: %s", data.costType.c_str(), data.cardName.c_str());
-        return;
+        return false; // 未知货币类型，不处理
     }
+}
 
+bool Store::canPurchase(const StoreCardData& data)
+{
+    if (checkBuildingNum(data) && checkCost(data)) {
+        return true;
+    }
+    else {
+        return false;
+    }
+}
+
+
+void Store::onCardClicked(const StoreCardData& data) {
+    // 播放购买音效
+    AudioEngine::play2d("click.mp3", false, 0.8f);
+
+    // 获取资源管理器
+    auto resourceManager = ResourceManager::getInstance();
+    bool purchaseSuccess = canPurchase(data);
     // 如果购买成功
     if (purchaseSuccess) {
         // 更新资源显示
@@ -262,10 +287,16 @@ void Store::showPurchaseMessage(const std::string& message, Color4B color) {
     auto visibleSize = Director::getInstance()->getVisibleSize();
 
     // 创建消息标签
-    auto messageLabel = Label::createWithTTF(message, "fonts/arial.ttf", 30);
-    messageLabel->setPosition(Vec2(visibleSize.width / 2, visibleSize.height / 2 + 100));
+    auto messageLabel = Label::createWithTTF(message, "fonts/arial.ttf", 40);
+    messageLabel->setPosition(Vec2(visibleSize.width / 2, visibleSize.height / 2 ));
     messageLabel->setTextColor(color);
     messageLabel->setOpacity(0);
+
+    //加点特效让它更醒目
+    messageLabel->enableOutline(Color4B::BLACK, 6); 
+    messageLabel->enableGlow(Color4B(255, 255, 255, 128));
+    messageLabel->enableShadow(Color4B(0, 0, 0, 150), Size(3, -3), 3); 
+
     this->addChild(messageLabel, 10);
 
     // 淡入淡出动画

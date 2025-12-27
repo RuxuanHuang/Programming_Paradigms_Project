@@ -31,7 +31,7 @@ bool Wall::init(const std::string& buildingFile,
     this->setBuildingName("Wall");
     this->setBuildingScale(0.85f);
     this->setBuildingSize(1);
-    
+    this->setHP(100);
     this->setMaxLevel(3);
     this->setCost(1000);
 

@@ -48,8 +48,7 @@ protected:
     cocos2d::Vec2 _mouseStartPos;
     float _clickThreshold = 10.0f; // 点击判定阈值
 
-    // 辅助方法
-    //void showCollectEffect(int amount, const std::string& resourceType);
+    std::vector<std::pair<std::string, std::string>> ResourceCollector::getSpecificInfoItems()override;
 };
 
 

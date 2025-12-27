@@ -89,7 +89,7 @@ public:
     bool makeGoldPurchase(int goldCost, bool allowZero = true);
     bool makeElixirPurchase(int elixirCost, bool allowZero = true);
 
-    // 获得资源（三种方式）
+    // 获得资源
     void earnResources(int goldAmount, int elixirAmount);  // 同时获得两种
     void earnGold(int amount);                             // 只获得金币
     void earnElixir(int amount);                           // 只获得圣水

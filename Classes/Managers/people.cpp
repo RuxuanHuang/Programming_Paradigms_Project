@@ -525,7 +525,7 @@ void PopulationScene::setupUI()
     m_mageSprite->runAction(repeat->clone());
     m_cavalrySprite->runAction(repeat->clone());
 
-  
+
     // ·µ»Ø°´Å¥
     MenuItem* backButton = nullptr;
     if (FileUtils::getInstance()->isFileExist("back.png")) {

@@ -7,6 +7,7 @@
 #include "Army_Camp.h"
 #include "ResourceCollector.h"
 #include "ResourceStorageBuilding.h"
+#include"people.h"
 
 USING_NS_CC;
 
@@ -37,7 +38,8 @@ BuildingManager::~BuildingManager() {
 
 void BuildingManager::initialize() {
     initBuildingConfigs();
-    initBuildingLimits();
+    initGrid();
+    
 }
 
 void BuildingManager::initBuildingConfigs() {
@@ -92,8 +94,44 @@ void BuildingManager::initBuildingConfigs() {
     }
 }
 
-void BuildingManager::initBuildingLimits() {
-    // 不再需要在Building类中静态存储，现在由Manager统一管理
+void BuildingManager::initGrid()
+{
+    // 把42x42的网格全部设为false
+    for (int x = 0; x < GRID_SIZE; x++)
+    {
+        for (int y = 0; y < GRID_SIZE; y++)
+        {
+            _grid[x][y] = false;
+        }
+    }
+    CCLOG("BuildingManager: 42x42网格初始化完成，全部为false");
+}
+
+void BuildingManager::setGrid(int x, int y, bool occupied)
+{
+    // 检查边界
+    if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE)
+    {
+        CCLOG("BuildingManager: 警告：网格坐标越界 (%d, %d)", x, y);
+        return;
+    }
+    _grid[y][x] = occupied;
+    // 调试输出
+    if (occupied)
+        CCLOG("BuildingManager: 设置网格(%d, %d)为true", x, y);
+    else
+        CCLOG("BuildingManager: 设置网格(%d, %d)为false", x, y);
+}
+
+bool BuildingManager::getGrid(int x, int y) const
+{
+    // 检查边界
+    if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE)
+    {
+        CCLOG("BuildingManager: 警告：获取网格坐标越界 (%d, %d)", x, y);
+        return false;  // 越界返回false
+    }
+    return _grid[y][x];
 }
 
 const BuildingConfig* BuildingManager::getBuildingConfig(const std::string& type) const {
@@ -245,7 +283,8 @@ Building* BuildingManager::createArmyCamp(const std::string& texturePath) {
     auto armyCamp = ArmyCamp::create(texturePath);
     if (armyCamp) {
         armyCamp->setBuildingType("ArmyCamp");
-        
+        auto populationMgr = PopulationManager::getInstance();
+        populationMgr->addToTotalPopulation(armyCamp->getPopulationCapacity());
     }
     return armyCamp;
 }
@@ -288,54 +327,7 @@ Building* BuildingManager::createElixirStorage(const std::string& texturePath) {
     return elixirStorage;
 }
 
-Vec2 BuildingManager::findAvailablePosition(Node* mapNode,
-    const cocos2d::Vector<Building*>& existingBuildings,
-    Building* newBuilding) const {
-    // 简单实现：从中心向外螺旋查找
-    const int maxRadius = 20;
 
-    for (int radius = 0; radius < maxRadius; radius++) {
-        for (int x = -radius; x <= radius; x++) {
-            for (int y = -radius; y <= radius; y++) {
-                if (abs(x) == radius || abs(y) == radius) {
-                    // 检查位置是否可用
-                    int gridX = x + 10; // 从中心偏移
-                    int gridY = y + 10;
-
-                    if (isPositionAvailable(gridX, gridY, newBuilding, existingBuildings)) {
-                        return Vec2(gridX, gridY);
-                    }
-                }
-            }
-        }
-    }
-
-    return Vec2(0, 0);
-}
-
-
-bool BuildingManager::isPositionAvailable(int gridX, int gridY,
-     Building* building,
-    const cocos2d::Vector<Building*>& existingBuildings) const {
-    if (!building) return false;
-
-    // 构建新建筑的网格矩形
-    Rect newRect(gridX, gridY, building->getSize(), building->getSize());
-
-    // 检查是否与其他建筑重叠
-    for (const auto& existing : existingBuildings) {
-        if (!existing) continue;
-
-        Rect existingRect(existing->getGridX(), existing->getGridY(),
-            existing->getSize(), existing->getSize());
-
-        if (newRect.intersectsRect(existingRect)) {
-            return false;
-        }
-    }
-
-    return true;
-}
 
 
 
@@ -345,5 +337,28 @@ bool BuildingManager::canUpgradeBuilding(const std::string& buildingType, int cu
     if (maxLevel <= 0) return false;
 
     return currentLevel < maxLevel;
+}
+
+
+
+void BuildingManager::addBuilding(Building* newBuilding) {
+    _allBuildings.pushBack(newBuilding);
+    std::string type = newBuilding->getBuildingType();
+    if (_currentBuildingCounts.find(type) == _currentBuildingCounts.end()) {
+        // 第一次出现，初始化为1
+        _currentBuildingCounts[type] = 1;
+    }
+    else {
+        // 已经存在，数量加1
+        _currentBuildingCounts[type]++;
+    }
+}
+
+int BuildingManager::getCurrentCountForType(const std::string& buildingType) const {
+    auto it = _currentBuildingCounts.find(buildingType);
+    if (it != _currentBuildingCounts.end()) {
+        return it->second;  // 找到，返回数量
+    }
+    return 0;  // 没找到，返回0
 }
 

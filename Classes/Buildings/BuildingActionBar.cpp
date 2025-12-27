@@ -13,9 +13,10 @@ BuildingActionBar::BuildingActionBar() :
     _changeSkinButton(nullptr),
     _buttonContainer(nullptr),
     _costLabel(nullptr),
+    _resourceIcon(nullptr), 
     _infoCallback(nullptr),
     _upgradeCallback(nullptr),
-    _changeSkinCallback(nullptr) 
+    _changeSkinCallback(nullptr)
 
 {
 }
@@ -30,17 +31,19 @@ bool BuildingActionBar::init()
     // 设置屏幕底部居中位置
     auto visibleSize = Director::getInstance()->getVisibleSize();
     this->setPosition(Vec2(visibleSize.width / 2, 0)); 
-    // 创建最简单的按钮
+    // 创建按钮
     createButtons();
+    //创建金币/圣水图标
+    createResourceIcon();
 
-    // 初始状态：隐藏
+    // 初始状态隐藏
     this->setVisible(false);
     this->setOpacity(0);
 
     return true;
 }
 
-// 创建按钮 - 最简单版本
+// 创建按钮
 void BuildingActionBar::createButtons()
 {
     _buttonContainer = Node::create();
@@ -56,7 +59,7 @@ void BuildingActionBar::createButtons()
     }
 
     // 2. 切换外观按钮
-    _changeSkinButton = Button::create("Buttons/ChangeAppearance.png", "", ""); // 你的按钮图片名
+    _changeSkinButton = Button::create("Buttons/ChangeAppearance.png", "", ""); 
     if (_changeSkinButton) {
         _changeSkinButton->setScale(0.21f);
         _changeSkinButton->setPosition(Vec2(0, -190)); // 中间位置
@@ -93,6 +96,73 @@ void BuildingActionBar::createButtons()
     setupButtonCallbacks();
 }
 
+
+// 创建资源图标
+void BuildingActionBar::createResourceIcon()
+{
+    // 创建资源图标（初始隐藏）
+    _resourceIcon = Sprite::create();
+    _resourceIcon->setVisible(false);
+    _resourceIcon->setScale(0.6f);
+
+    if (_buttonContainer) {
+        _buttonContainer->addChild(_resourceIcon, 101); // 较高层级
+    }
+}
+
+// 根据资源类型获取图标路径
+std::string BuildingActionBar::getResourceIconPath(const std::string& resourceType) const
+{
+    
+    if (resourceType == "Gold") {
+        return "others/GoldIcon.png";  // 金币图标
+    }
+    else if (resourceType == "Elixir") {
+        return "others/ElixirIcon.png"; // 圣水图标
+    }
+    else {
+       
+        CCLOG("Warning: Unknown resource type: %s", resourceType.c_str());
+        return "others/GoldIcon.png";
+    }
+}
+
+// 更新资源图标显示
+void BuildingActionBar::updateResourceIcon(int cost, const std::string& resourceType)
+{
+    if (!_resourceIcon) return;
+
+    if (cost > 0 && !resourceType.empty()) {
+        // 显示资源图标
+        std::string iconPath = getResourceIconPath(resourceType);
+        _resourceIcon->setTexture(iconPath);
+
+        if (_resourceIcon->getTexture()) {
+            _resourceIcon->setVisible(true);
+
+            
+            if (_costLabel && _upgradeButton) {
+                // 获取价格标签的宽度
+                float labelWidth = _costLabel->getContentSize().width;
+
+                // 设置资源图标位置
+                float iconX = _costLabel->getPositionX() + labelWidth / 2 + 15;
+                float iconY = _costLabel->getPositionY()+5 ;
+
+                _resourceIcon->setPosition(Vec2(iconX, iconY));
+            }
+        }
+        else {
+            // 如果加载图标失败，隐藏图标
+            CCLOG("Error: Failed to load resource icon: %s", iconPath.c_str());
+            _resourceIcon->setVisible(false);
+        }
+    }
+    else {
+        // 如果没有成本或者资源类型为空，隐藏图标
+        _resourceIcon->setVisible(false);
+    }
+}
 // 设置按钮回调
 void BuildingActionBar::setupButtonCallbacks()
 {
@@ -124,13 +194,15 @@ void BuildingActionBar::showForBuilding(Building* building)
     if (!building) return;
 
     _currentBuilding = building;
+
 	int cost = building->getCost();
+    std::string resourceType = building->getCostType();
     if (cost) {
         _costLabel->setString(std::to_string(cost));
+        updateResourceIcon(cost, resourceType);
     }
     else {
         _costLabel->setString("");
-        _upgradeButton->setColor(Color3B(128, 128, 128)); // 灰色
     }
     
     if (_changeSkinButton) {
@@ -192,7 +264,7 @@ void BuildingActionBar::setChangeSkinCallback(const std::function<void()>&callba
     _changeSkinCallback = callback;
 }
 
-// 原有回调设置（仅信息+升级）
+// 回调设置
 void BuildingActionBar::setCallbacks(const std::function<void()>& infoCallback,
     const std::function<void()>& upgradeCallback)
 {

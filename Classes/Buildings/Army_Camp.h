@@ -2,7 +2,7 @@
 #define __ARMYCAMP_H__
 
 #include "Building.h"
-
+#include"people.h"
 class ArmyCamp : public Building
 {
 public:
@@ -16,10 +16,12 @@ public:
     ~ArmyCamp() = default;
 
     virtual void upgrade() override;
+	int getPopulationCapacity() const { return _populationCapcity; }
 protected:
     virtual bool init(const std::string& buildingFile,
         const std::string turfFile,
         float buildingScale) override;
+    std::vector<std::pair<std::string, std::string>> getSpecificInfoItems()override;
 private:
     int _populationCapcity;
     std::vector<int>populationCapacityList;

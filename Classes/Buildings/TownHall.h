@@ -12,7 +12,7 @@ public:
     static TownHall* create(const std::string& buildingFile = "Town_Hall/Town_Hall1.png", 
         bool isHomeTown = true,
         const std::string& turfFile = "grass.png",
-        float buildingScale = 0.8f);
+        float buildingScale = 0.75f);
 
     TownHall() = default;
     ~TownHall() = default;
@@ -25,6 +25,7 @@ protected:
     void upgrade() override;
     int _maxCapacity;       //资源最大存储量
 	std::vector<int> capacityList;
+	std::vector<std::pair<std::string, std::string>> getSpecificInfoItems()override;
 	
 };
 

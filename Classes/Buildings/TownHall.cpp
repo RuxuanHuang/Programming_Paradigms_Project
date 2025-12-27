@@ -1,4 +1,4 @@
-ï»¿#include "TownHall.h"
+#include "TownHall.h"
 #include"resources.h"
 
 USING_NS_CC;
@@ -26,12 +26,12 @@ bool TownHall::init(const std::string& buildingFile,
     float buildingScale)
 {
 
-    // 1. å…ˆè°ƒç”¨çˆ¶ç±»çš„init
+    // 1. ÏÈµ÷ÓÃ¸¸ÀàµÄinit
     if (!Building::init(buildingFile, turfFile, buildingScale)) {
         return false;
     }
 
-    // è®¾ç½®å¤§æœ¬è¥åŸºæœ¬å±æ€§
+    // ÉèÖÃ´ó±¾Óª»ù±¾ÊôĞÔ
     this->setBuildingName("Town Hall");
     this->setBuildingSize(4);
     this->setCost(1000);
@@ -43,14 +43,12 @@ bool TownHall::init(const std::string& buildingFile,
 
     int hpValues[] = { 400,800,1600 };
     int upgradeCosts[] = { 1000,4000,0 };
-    // 3. è®¾ç½®å¤§æœ¬è¥ç­‰çº§ä¿¡æ¯
+    // 3. ÉèÖÃ´ó±¾ÓªµÈ¼¶ĞÅÏ¢
     for (int i = 1; i <= 3; i++) {
         _upgradeSprites[i] = levelInformation{ hpValues[i - 1], upgradeCosts[i - 1], "" };
         std::string spriteFile = StringUtils::format("Town_Hall/Town_Hall%d.png", i);
         this->setUpgradeSprite(i, spriteFile);
     }
-
-
     return true;
 
 }
@@ -60,12 +58,20 @@ void TownHall::upgrade()
     Building::upgrade();
 
 	_maxCapacity = capacityList[_level - 1];
-    //å»ºç­‘ç®¡ç†ç³»ç»Ÿé‡Œæ›´æ–°å¤§æœ¬è¥çš„å‡çº§
+    //½¨Öş¹ÜÀíÏµÍ³Àï¸üĞÂ´ó±¾ÓªµÄÉı¼¶
     BuildingManager* buildingManager = BuildingManager::getInstance();
     buildingManager->addTownhallLevel();
-    //èµ„æºç®¡ç†ç³»ç»Ÿæ›´æ–°é‡‘å¸åœ£æ°´å®¹é‡çš„ç›¸åº”å¢åŠ 
+    //×ÊÔ´¹ÜÀíÏµÍ³¸üĞÂ½ğ±ÒÊ¥Ë®ÈİÁ¿µÄÏàÓ¦Ôö¼Ó
     ResourceManager* resourceManager = ResourceManager::getInstance();
     resourceManager->updateElixirMaxLimit(_maxCapacity- capacityList[_level-2]);
     resourceManager->updateGoldMaxLimit(_maxCapacity - capacityList[_level - 2]);
 
+}
+
+std::vector<std::pair<std::string, std::string>> TownHall::getSpecificInfoItems()
+{
+    return {
+        {"Gold Capacity", std::to_string(static_cast<int>(_maxCapacity))},
+        {"Elixir Capacity", std::to_string(static_cast<int>(_maxCapacity))}
+    };
 }
