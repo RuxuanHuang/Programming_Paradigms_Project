@@ -4,6 +4,7 @@
 #include "cocos2d.h"
 #include "ui/CocosGUI.h"
 #include"BuildingActionBar.h"
+#include"resources.h"
 #include<vector>
 struct levelInformation {
 	int _hp;
@@ -15,8 +16,15 @@ USING_NS_CC;
 class Building : public Node
 {
 public:
+    // ========== 新增：获取生命值方法 ==========
+    float getCurrentHP() const { return _currentHP; }
+    float getMaxHP() const { return _HP; }
+
     void occupyTiles(float tileX, float tileY);
     std::vector<cocos2d::Vec2> getAttackTiles();
+	std::string getCostType() {
+		return _costType;
+	}
 
 private:
     int _tileX;
@@ -24,7 +32,7 @@ private:
 
 public:
 	static Building* create(const std::string& buildingFile,
-        bool isHownTown = true,
+        bool isHomeTown = true,
         const std::string turfFile = "grass.png",
         float buildingScale = 0.8f);
 
@@ -70,7 +78,9 @@ public:
     virtual void onUpgradeButtonClicked();
 
   
-
+    int getSize() {
+        return _size;
+    }
     // 升级一次
     virtual void upgrade();
 
@@ -92,8 +102,11 @@ public:
     void setMaxLevel(int l){
         _maxLevel = l;
     }
+    //血条
+    void initHPBar(bool immediateShow);
+    void updateHPBar();
 
-
+    void showUpgradeMessage(const std::string& message, Color4B color);
 protected:
     Vec2 _dragStartPos;
 
@@ -117,9 +130,9 @@ protected:
     float _diamondWidthRatio;
     float _diamondHeightRatio;
     int _size;
-    void onBuildingMouseDown(cocos2d::Event* event);
-    void onBuildingMouseUp(cocos2d::Event* event);
-    void onBuildingMouseMove(cocos2d::Event* event);
+    virtual void onBuildingMouseDown(cocos2d::Event* event);
+    virtual void onBuildingMouseUp(cocos2d::Event* event);
+    virtual void onBuildingMouseMove(cocos2d::Event* event);
     void setupBuildingOnTurf();
 
     
@@ -135,17 +148,44 @@ protected:
     int _level;
     int _HP;
     int _cost;
+    std::string _costType;
  
     std::unordered_map<int, levelInformation> _upgradeSprites;  // 等级->图片映射
     void changeBuildingSprite(const std::string& newSpriteFile);  // 更换建筑精灵
+  //血条
+    cocos2d::ui::LoadingBar* _hpBar = nullptr;
+    cocos2d::Sprite* _hpBarBg = nullptr;
+    int _currentHP; // 当前血量
+    bool _showHPBar = false; // 是否显示血条的控制变量
+    // 血条尺寸常量
+    const float HP_BAR_WIDTH = 60.0f;
+    const float HP_BAR_HEIGHT = 8.0f;
+public:
+    void reduceHP(float damage);
+    bool isAlive() const { return _currentHP > 0; }
+    float getTileX() { return _tileX; }
+    float getTileY() { return _tileY; }
+    std::string getBuildingName() { return _buildingName; }
 public:
     BuildingActionBar* _actionBar = nullptr;
-	void setIsHownTown(bool isHownTown) { _isHownTown = isHownTown; }
-	bool getIsHownTown() { return _isHownTown; }
+	void setIsHownTown(bool isHomeTown) { _isHomeTown = isHomeTown; }
+	bool getIsHownTown() { return _isHomeTown; }
+    void Building::onDestroyed();
+    virtual std::string getBuildingType() const { return _buildingType; }
+    virtual void setBuildingType(const std::string& type) { _buildingType = type; }
+    int getGridX() const { return _gridX; }
+    int getGridY() const { return _gridY; }
+    void setGridPosition(int x, int y) {
+        _gridX = x;
+        _gridY = y;
+    }
 protected:
     int _maxLevel;
-    bool _isHownTown= true;
+    bool _isHomeTown= true;
+    std::string _buildingType;
 
+    int _gridX=0;
+    int _gridY=0;
 };
 
 #endif // __BUILDING_H__

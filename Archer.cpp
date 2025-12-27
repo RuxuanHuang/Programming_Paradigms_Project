@@ -2,6 +2,13 @@
 #include "Archer.h"
 #include "BattleScene1.h" // 包含场景头文件，访问队列
 
+Archer::~Archer() {
+    if (_walkAnimation) {
+        _walkAnimation->release();
+        _walkAnimation = nullptr;
+    }
+}
+
 // ========== 新增：1级基础属性（步兵：血厚、攻中等） ==========
 void Archer::initBaseAttributes() {
     _maxHP = 50;   // 1级最大生命值
@@ -25,18 +32,18 @@ Archer* Archer::create(Vec2 pos, float scale) {
     return nullptr;
 }
 
+
 bool Archer::init(Vec2 pos, float scale) {
     // 替换为弓箭手的静止图片
     if (!initBase("archer_walk1.png", pos, scale)) {
         return false;
     }
-    // 替换为弓箭手的行走帧图片
+
     _walkFrames = { "archer_walk1.png", "archer_walk2.png", "archer_walk3.png" };
     initWalkAnimation();
     return true;
 }
 
-// 以下函数实现与Player1类似，可根据弓箭手特性调整（如移动速度、动画帧间隔）
 void Archer::initWalkAnimation() {
     Vector<SpriteFrame*> frames;
     for (auto& path : _walkFrames) {
@@ -45,42 +52,64 @@ void Archer::initWalkAnimation() {
             texture->getContentSize().width, texture->getContentSize().height));
         frames.pushBack(frame);
     }
-    _walkAnimation = Animation::createWithSpriteFrames(frames, 0.15f); // 弓箭手动画更快
-    _walkAnimation->setLoops(-1);
+    // 创建 Animation 并 retain 它，保证跨帧存在
+    _walkAnimation = Animation::createWithSpriteFrames(frames, 0.2f);
+    if (_walkAnimation) {
+        _walkAnimation->retain();
+        _walkAnimation->setLoops(-1);
+    }
 }
 
 void Archer::playWalkAnimation() {
-    if (_walkAction) stopAction(_walkAction);
-    _walkAction = runAction(Animate::create(_walkAnimation));
+    // 保护性检查
+    if (!_walkAnimation) {
+        CCLOG("Warning: playWalkAnimation called but _walkAnimation == nullptr");
+        return;
+    }
+
+    // 如果之前有正在运行的 walk 动作，先停止并置空（避免悬垂）
+    if (_walkAction) {
+        stopAction(_walkAction);
+        _walkAction = nullptr;
+    }
+
+    // 创建 Animate 并运行，保存返回的 Action*
+    auto animAction = Animate::create(_walkAnimation);
+    if (animAction) {
+        _walkAction = this->runAction(animAction);
+    }
+    else {
+        CCLOG("Warning: Animate::create returned nullptr");
+    }
 }
 
 void Archer::stopWalkAnimation() {
     if (_walkAction) {
         stopAction(_walkAction);
         _walkAction = nullptr;
-        setTexture(_idleImgPath);
     }
+    // 回到 idle 贴图
+    setTexture(_idleImgPath);
 }
 
-// Archer.cpp 中的 moveToTarget 函数
+
+
 void Archer::moveToTarget(Vec2 targetPos, float duration) {
     if (_moveAction) stopAction(_moveAction);
-    // 计算当前位置与目标位置的X坐标差，判断是否需要翻转
+
+    // 方向处理
     bool needFlip = this->getPositionX() > targetPos.x;
     setFlippedX(needFlip);
 
     bool* hasEntered = new bool(false);
     auto move = MoveTo::create(duration, targetPos);
 
-    // 范围检测：进入攻击范围则加入队列
     auto checkDistance = CallFunc::create([this, targetPos, hasEntered]() {
         if (*hasEntered) return;
-
         float distance = this->getPosition().distance(targetPos);
-        const float NEAR_DISTANCE = 50.0f;
+        const float NEAR_DISTANCE = 500.0f;
         if (distance <= NEAR_DISTANCE) {
             *hasEntered = true;
-            // 加入攻击队列（替代原有销毁队列）
             BattleScene1* scene = dynamic_cast<BattleScene1*>(this->getParent());
             if (scene) {
                 scene->addToAttackQueue(this);
@@ -88,12 +117,22 @@ void Archer::moveToTarget(Vec2 targetPos, float duration) {
         }
         });
 
-    auto checkRepeat = Repeat::create(Sequence::create(checkDistance, DelayTime::create(0.1f), nullptr), 1000);
-    _moveAction = runAction(Spawn::create(move, checkRepeat, nullptr));
-    playWalkAnimation();
+    // 使用 RepeatForever 或合理次数的 Repeat，避免把 runAction 的返回值再作为动作项使用
+    auto checkSeq = Sequence::create(checkDistance, DelayTime::create(0.1f), nullptr);
+    auto checkRepeat = RepeatForever::create(checkSeq);
 
+    // 先创建 Spawn（或 Sequence），不要把 runAction(...) 的返回值 cast 回去再作为动作使用
+    auto spawn = Spawn::create(move, checkRepeat, nullptr);
+
+    // cleanup lambda
     auto cleanup = CallFunc::create([hasEntered]() {
         delete hasEntered;
         });
-    runAction(Sequence::create(static_cast<FiniteTimeAction*>(_moveAction), cleanup, nullptr));
+
+    // 把 spawn 放入 sequence，runAction 返回值保存在 _moveAction 中
+    auto seq = Sequence::create(spawn, cleanup, nullptr);
+    _moveAction = this->runAction(seq);
+
+    // 播放走路动画
+    playWalkAnimation();
 }

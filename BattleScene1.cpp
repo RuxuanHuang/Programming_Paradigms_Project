@@ -9,6 +9,7 @@
 #include "people.h"
 #include"BattleMapLogic.h"
 
+
 USING_NS_CC;
 
 // 定义Tag常量
@@ -80,10 +81,26 @@ bool BattleScene1::init()
     // 初始化拖动状态
     _isMapDragging = false;
 
+    // ========== 胜负判定系统初始化 ==========
+    _totalInitialBuildingHP = 0.0f;
+    _currentTotalBuildingHP = 0.0f;
+    _battleEnded = false;
+    _allSoldiersReleased = false;
+    _totalMaxSoldiers = 0;
+    _releasedSoldiersCount = 0;
+
+
+
+    // 创建摧毁率显示标签（保留这个）
+    _destructionRateLabel = ui::Text::create("DESTRUCTION: 0%", "fonts/Marker Felt.ttf", 20);
+    _destructionRateLabel->setPosition(Vec2(visibleSize.width - 120, visibleSize.height - 50));
+    _destructionRateLabel->setTextColor(Color4B::YELLOW);
+    this->addChild(_destructionRateLabel, 1000);
 
     auto townHall = TownHall::create("Town_Hall/Town_Hall3.png", false, "mud.png");
     //townHall->setLevel(3);
     townHall->setTilePosition(mapSprite, 0.5, 1.5);
+    townHall->initHPBar(true); // <--- 添加这一行初始化血条
     mapSprite->addChild(townHall, 1);
     _buildings.push_back(townHall);  // <-- 添加这行
     // 新增：标记建筑占据的格子为不可通行
@@ -99,6 +116,7 @@ bool BattleScene1::init()
 
     auto goldMine1 = GoldMine::create("Gold_Mine/Gold_Mine3.png", false, "mud.png");
     goldMine1->setTilePosition(mapSprite, -6, 4);
+    goldMine1->initHPBar(true); // <--- 添加这一行初始化血条
     // 新增：标记建筑占据的格子为不可通行
     for (int dx = -1; dx <= 1; dx++) {
         for (int dy = -1; dy <= 1; dy++) {
@@ -113,6 +131,7 @@ bool BattleScene1::init()
     auto goldMine2 = GoldMine::create("Gold_Mine/Gold_Mine3.png", false, "mud.png");
     goldMine2->setTilePosition(mapSprite, 7, 4);
     // 新增：标记建筑占据的格子为不可通行
+    goldMine2->initHPBar(true); // <--- 添加这一行初始化血条
     for (int dx = -1; dx <= 1; dx++) {
         for (int dy = -1; dy <= 1; dy++) {
             int tileX = static_cast<int>(7 + dx);
@@ -125,6 +144,7 @@ bool BattleScene1::init()
 
     auto ElixirStorage1 = ElixirStorage::create("Elixir_Storage/Elixir_Storage2.png", false, "mud.png");
     ElixirStorage1->setTilePosition(mapSprite, -6, 1);
+    ElixirStorage1->initHPBar(true); // <--- 添加这一行初始化血条
     // 新增：标记建筑占据的格子为不可通行
   // 假设建筑占据以(0.5,1.5)为中心的3x3区域
     for (int dx = -1; dx <= 1; dx++) {
@@ -139,6 +159,7 @@ bool BattleScene1::init()
 
     auto ElixirStorage2 = ElixirStorage::create("Elixir_Storage/Elixir_Storage2.png", false, "mud.png");
     ElixirStorage2->setTilePosition(mapSprite, 7, 1);
+    ElixirStorage2->initHPBar(true); // <--- 添加这一行初始化血条
     // 新增：标记建筑占据的格子为不可通行
   // 假设建筑占据以(0.5,1.5)为中心的3x3区域
     for (int dx = -1; dx <= 1; dx++) {
@@ -152,7 +173,10 @@ bool BattleScene1::init()
     _buildings.push_back(ElixirStorage2);
 
     auto Cannon1 = Cannon::create("Cannon/Cannon2.png", false, "mud.png");
+    Cannon1->setLevel(2);
     Cannon1->setTilePosition(mapSprite, 0, -7);
+    Cannon1->initHPBar(true); // <--- 添加这一行初始化血条
+    Cannon1->startCombatAI();
     // 新增：标记建筑占据的格子为不可通行
   // 假设建筑占据以(0.5,1.5)为中心的3x3区域
     for (int dx = -1; dx <= 1; dx++) {
@@ -166,7 +190,10 @@ bool BattleScene1::init()
     _buildings.push_back(Cannon1);
 
     auto Cannon2 = Cannon::create("Cannon/Cannon3.png", false, "mud.png");
+    Cannon2->setLevel(3);
     Cannon2->setTilePosition(mapSprite, 0, 9);
+    Cannon2->initHPBar(true); // <--- 添加这一行初始化血条
+    Cannon2->startCombatAI();
     // 新增：标记建筑占据的格子为不可通行
   // 假设建筑占据以(0.5,1.5)为中心的3x3区域
     for (int dx = -1; dx <= 1; dx++) {
@@ -182,8 +209,13 @@ bool BattleScene1::init()
     // 设置默认目标建筑（比如第一个建筑）
     if (!_buildings.empty()) {
         _targetBuilding = _buildings[0];
-        CCLOG("设置默认目标建筑：%p", _targetBuilding);
+        
     }
+
+    // 在创建所有建筑后，计算初始总生命值
+    calculateInitialBuildingHP();
+    // 计算最大可释放士兵数
+    calculateMaxSoldiersCount();
 
     // 初始化战斗状态为未开始
     _isBattleStarted = false;
@@ -213,6 +245,9 @@ bool BattleScene1::init()
     // 注册监听器 (处理滚轮和地图拖动)
     //_eventDispatcher->addEventListenerWithSceneGraphPriority(_mouseListener, this);
     //visualizeBlockedTiles();
+
+       // 每帧更新检查战斗结果
+    this->scheduleUpdate();
     return true;
 }
 
@@ -461,9 +496,13 @@ void BattleScene1::loadMaxReleaseCountsFromPopulationManager() {
 
 // 新增：重置释放计数
 void BattleScene1::resetSoldierReleaseCounts() {
+    _releasedSoldiersCount = 0;
+    _allSoldiersReleased = false;
+
     for (auto& pair : _soldierReleaseCounts) {
         pair.second = 0;
     }
+
     // 更新UI标签
     for (auto& pair : _countLabels) {
         updateCountLabel(pair.first);
@@ -492,9 +531,9 @@ void BattleScene1::processDestroyQueue() {
     _isDestroying = true;
     Soldier* current = _destroyQueue.front(); // 取队首士兵
 
-    // 3秒后销毁当前士兵，然后处理下一个
+    // 0.5秒后销毁当前士兵，然后处理下一个
     current->runAction(Sequence::create(
-        DelayTime::create(3.0f),
+        DelayTime::create(0.5f),
         CallFunc::create([this]() {
             // 销毁当前士兵
             _destroyQueue.front()->removeFromParentAndCleanup(true);
@@ -601,7 +640,6 @@ void BattleScene1::createPopulationButton() {
                 populationMgr->initialize(totalPopulation);
             }
 
-            CCLOG("打开人口分配场景，总人口: %d", totalPopulation);
 
             // 打开人口分配场景
             auto populationScene = PopulationScene::createScene(totalPopulation);
@@ -655,7 +693,8 @@ void BattleScene1::spawnSoldier(Soldier::Type type, Vec2 worldPos) {
     soldier->setLevel(getTempSoldierLevel(type));
     soldier->bindScene(this);
     this->addChild(soldier, 1);
-
+    // 将新士兵加入管理列表
+    _activeSoldiers.push_back(soldier);
     // 标记战斗已开始
     _isBattleStarted = true;
 
@@ -674,37 +713,31 @@ void BattleScene1::spawnSoldier(Soldier::Type type, Vec2 worldPos) {
         // 同时设置士兵的初始世界位置（直接使用传入的worldPos）
         soldier->setPosition(worldPos);
 
-        CCLOG("士兵初始位置：世界(%.1f,%.1f) -> 地图局部(%.1f,%.1f) -> 格子(%.1f,%.1f)",
-            worldPos.x, worldPos.y, mapLocal.x, mapLocal.y, startTile.x, startTile.y);
     }
     else {
-        CCLOG("错误：无法获取地图节点！");
+       
     }
 
-    // ========== 让士兵朝建筑移动 ==========
-    if (_targetBuilding) {
-        CCLOG("士兵朝目标建筑移动");
-
+    // ========== 使用 getNextTargetBuilding 选择目标 ==========
+    Building* targetForThisSoldier = getNextTargetBuilding(soldier);
+    if (targetForThisSoldier) {
         // 设置到达目标时的回调
-        soldier->onReachTarget = [this](Soldier* s) {
-            CCLOG("士兵到达目标位置");
-
-            // 判断是否进入攻击范围
-            if (isInAttackRange(s)) {
-                CCLOG("士兵进入攻击范围，加入攻击队列");
-                addToAttackQueue(s);
+        soldier->onReachTarget = [this, soldier, targetForThisSoldier](Soldier* s) {
+            if (targetForThisSoldier && targetForThisSoldier->isAlive()) {
+                soldier->setState(Soldier::State::WAITING);
+                soldier->startAttacking(targetForThisSoldier);
             }
             else {
-                CCLOG("士兵未进入攻击范围");
+                soldier->setState(Soldier::State::MOVING);
+                soldier->onTargetDestroyed();
             }
             };
 
-        // 让士兵朝建筑移动（使用A*寻路）
-        soldier->moveToBuilding(_targetBuilding);
+        soldier->setState(Soldier::State::WAITING);
+        soldier->moveToBuilding(targetForThisSoldier);
     }
     else {
-        // 如果没有目标建筑，使用原来的逻辑：移动到攻击点
-        CCLOG("没有目标建筑，使用原攻击点移动逻辑");
+        // 如果没有找到目标，使用备用逻辑
         float distance = worldPos.distance(_attackTargetPos);
         float duration = distance / SOLDIER_SPEED;
         soldier->moveToTarget(_attackTargetPos, duration);
@@ -716,9 +749,13 @@ void BattleScene1::spawnSoldier(Soldier::Type type, Vec2 worldPos) {
             };
     }
 
-    // 更新计数
+    // 更新士兵计数
+    _releasedSoldiersCount++;
+
+    // 更新释放计数
     _soldierReleaseCounts[type]++;
     updateCountLabel(type);
+
 }
 
 void BattleScene1::processSoldierQueue() {
@@ -739,14 +776,20 @@ void BattleScene1::processSoldierQueue() {
 
     // 启动当前士兵受攻击
     currentSoldier->startTakeDamagePerSecond(_damagePerSec);
-    CCLOG("开始攻击队列头部士兵，每秒扣血：%.1f", _damagePerSec);
-
+    
     // 监听士兵死亡事件，死亡后处理下一个
     Director::getInstance()->getScheduler()->schedule(
         [this](float dt) {
             if (!_soldierQueue.empty() && !_soldierQueue.front()->isAlive()) {
+                auto scene = dynamic_cast<BattleScene1*>(Director::getInstance()->getRunningScene());
+                Soldier* targetSoldier = _soldierQueue.front();
+                if (scene) {
+                    scene->removeSoldierFromList(targetSoldier);
+                }
                 _soldierQueue.pop();
+                targetSoldier->removeFromParentAndCleanup(true);
                 this->_isProcessingQueue = false;
+
                 this->processSoldierQueue(); // 处理下一个士兵
             }
         },
@@ -796,8 +839,10 @@ void BattleScene1::addToAttackQueue(Soldier* soldier) {
 
     soldier->setState(Soldier::State::WAITING); // 进入等待状态
     _attackQueue.push(soldier);
-    CCLOG("士兵加入攻击队列，当前队列长度：%d", (int)_attackQueue.size());
 
+    if (_targetBuilding && _targetBuilding->isAlive()) {
+        soldier->startAttacking(_targetBuilding);
+    }
     // 若队列未处理，立即启动第一个士兵受击
     if (!_isQueueProcessing) {
         processAttackQueue();
@@ -837,7 +882,7 @@ void BattleScene1::processAttackQueue() {
         // 开始攻击并显示当前士兵的血条
         frontSoldier->startTakeDamagePerSecond(_damagePerSec);
         frontSoldier->showHPBar();
-        CCLOG("开始攻击队列头部士兵，每秒扣血：%.1f", _damagePerSec);
+      
 
         // 使用更可靠的检查方式
         Director::getInstance()->getScheduler()->schedule(
@@ -867,9 +912,19 @@ void BattleScene1::processAttackQueue() {
 void BattleScene1::onEnter() {
     Scene::onEnter();
 
-    // 每次进入场景时重新加载人口分配数据
+    // 重新加载人口分配数据
     loadMaxReleaseCountsFromPopulationManager();
-    CCLOG("战斗场景进入，重新加载人口分配");
+
+    // 重置战斗状态
+    _battleEnded = false;
+    _allSoldiersReleased = false;
+    _releasedSoldiersCount = 0;
+
+    // 重新计算最大士兵数
+    calculateMaxSoldiersCount();
+
+    // 恢复场景更新
+    this->scheduleUpdate();
 }
 
 // 新增：创建返回按钮的实现
@@ -919,7 +974,6 @@ void BattleScene1::backToCampCallback(cocos2d::Ref* pSender)
     // 如果你想使用过渡效果，可以使用以下方式：
     // Director::getInstance()->replaceScene(TransitionFade::create(0.5f, campScene));
 
-    CCLOG("从战斗场景返回到大本营场景");
 }
 
 void BattleScene1::visualizeBlockedTiles() {
@@ -953,10 +1007,541 @@ void BattleScene1::visualizeBlockedTiles() {
                 marker->setPosition(worldPos);
                 debugLayer->addChild(marker);
 
-                CCLOG("阻挡格子(%d,%d) -> 地图局部(%.0f,%.0f) -> 世界坐标(%.0f,%.0f)",
-                    x, y, mapLocal.x, mapLocal.y, worldPos.x, worldPos.y);
             }
         }
     }
-    CCLOG("=== 可视化阻挡格子完成 ===");
+}
+void BattleScene1::removeSoldierFromList(Soldier* soldier) {
+    // 使用 std::remove 将目标移动到末尾，然后 erase 掉
+    auto it = std::remove(_activeSoldiers.begin(), _activeSoldiers.end(), soldier);
+    if (it != _activeSoldiers.end()) {
+        _activeSoldiers.erase(it, _activeSoldiers.end());
+     
+    }
+}
+
+Building* BattleScene1::getNextTargetBuilding(Soldier* soldier) {
+    if (!soldier || _buildings.empty()) return nullptr;
+
+    Building* nearestPreferred = nullptr;
+    Building* nearestAny = nullptr;
+    float minPreferredDistance = FLT_MAX;
+    float minAnyDistance = FLT_MAX;
+    Vec2 soldierPos = soldier->getPosition();
+
+    // 获取士兵的攻击偏好
+    BuildingPreference preference = soldier->getAttackPreference();
+    auto preferredTypes = soldier->getPreferredBuildingTypes();
+
+    bool hasPreference = (preference != BuildingPreference::ANY && !preferredTypes.empty());
+
+    // 遍历所有建筑
+    for (Building* building : _buildings) {
+        if (!building || !building->isAlive()) continue;
+
+        // 计算建筑与士兵的距离
+        float distance = soldierPos.distance(building->getPosition());
+
+        // 检查是否为偏好建筑
+        bool isPreferred = false;
+        if (hasPreference) {
+            std::string buildingName = building->getBuildingName();
+            for (const auto& type : preferredTypes) {
+                if (buildingName.find(type) != std::string::npos) {
+                    isPreferred = true;
+                    break;
+                }
+            }
+        }
+
+        // 记录最近偏好建筑
+        if (isPreferred && distance < minPreferredDistance) {
+            // 检查是否可达
+            Vec2 targetTile;
+            if (soldier->chooseTargetTile(building, targetTile)) {
+                minPreferredDistance = distance;
+                nearestPreferred = building;
+            }
+        }
+
+        // 记录最近任意建筑
+        if (distance < minAnyDistance) {
+            // 检查是否可达
+            Vec2 targetTile;
+            if (soldier->chooseTargetTile(building, targetTile)) {
+                minAnyDistance = distance;
+                nearestAny = building;
+            }
+        }
+    }
+
+    // 如果找到可达的偏好建筑，优先返回
+    if (nearestPreferred) {
+        return nearestPreferred;
+    }
+
+    // 否则返回最近的可达建筑
+    if (nearestAny) {
+        return nearestAny;
+    }
+
+    return nullptr;
+}
+
+// 新增实现：把士兵交由场景排队销毁（在 BattleScene1 类里添加声明）
+void BattleScene1::enqueueSoldierForDestruction(Soldier* soldier) {
+    if (!soldier) return;
+
+    // 1) 从活跃列表里移除（安全移除）
+    removeSoldierFromList(soldier);
+
+    // 2) 将士兵放入销毁队列（processDestroyQueue 会在队列头每次延迟后执行 removeFromParent）
+    _destroyQueue.push(soldier);
+
+    // 3) 启动销毁队列处理（如果当前没有在处理的话）
+    if (!_isDestroying) {
+        processDestroyQueue();
+    }
+}
+
+
+void BattleScene1::freeTile(int tileX, int tileY) {
+    // 边界检查：与 isWalkable/occupyTile 使用的范围一致
+    if (tileX < -HALF || tileX >= HALF || tileY < -HALF || tileY >= HALF) {
+        return;
+    }
+    // 调用 BattleMapLogic 中的 clearTile（它会把 g_map[...] 置为空）
+    clearTile(tileX, tileY);
+}
+
+// Add / replace BattleScene1::onBuildingDestroyed implementation
+
+void BattleScene1::onBuildingDestroyed(Building* b) {
+    if (!b) return;
+
+    // 1) 从本场景的 _buildings 列表中移除该建筑指针
+    auto it = std::find(_buildings.begin(), _buildings.end(), b);
+    if (it != _buildings.end()) {
+        _buildings.erase(it);
+    }
+
+    // 2) 通知所有士兵：如果他们的目标是这个建筑则让其切换目标（调用 onTargetDestroyed）
+    // 使用拷贝遍历以避免在迭代中 _activeSoldiers 被修改导致迭代器失效
+    auto soldiersCopy = _activeSoldiers; // copy
+    for (auto s : soldiersCopy) {
+        if (!s) continue;
+        // 如果士兵的目标正是被摧毁的建筑，通知它切换目标
+        if (s->getAttackTarget() == b) {
+            // 调用 onTargetDestroyed，让士兵停止当前攻击并寻找下一个目标
+            s->onTargetDestroyed();
+        }
+    }
+
+    // 3) 如果你有 UI / 默认目标引用，更新它们（可选）
+    if (_targetBuilding == b) {
+        _targetBuilding = nullptr;
+        if (!_buildings.empty()) _targetBuilding = _buildings.front();
+    }
+    // 建筑被摧毁后更新摧毁率
+    updateDestructionRateDisplay();
+}
+
+// BattleScene1.cpp - 新增
+bool BattleScene1::applyDamageToBuilding(Building* b, float damage) {
+    if (!b) return false;
+
+    // 1) 先通过指针比较判断 b 是否仍由场景管理（不解引用 b）
+    auto it = std::find(_buildings.begin(), _buildings.end(), b);
+    if (it == _buildings.end()) {
+        // b 不在当前场景的建筑列表中，视为已被移除/销毁
+        return false;
+    }
+
+    // 2) 安全地使用列表中的指针（*it 肯定有效）来查询或减少血量
+    Building* sceneBuilding = *it;
+    if (!sceneBuilding) return false;
+
+    // 3) 再次检查存活（现在可以安全调用，因为 sceneBuilding 来自 _buildings）
+    if (!sceneBuilding->isAlive()) {
+        return false;
+    }
+
+    // 4) 真正造成伤害（建的 reduceHP 内部会自己处理被摧毁逻辑）
+    sceneBuilding->reduceHP(damage);
+
+    // 更新摧毁率显示
+    updateDestructionRateDisplay();
+
+    // 5) 如果 reduceHP 造成建筑死亡，这里可能会触发 onDestroyed -> onBuildingDestroyed 等流程
+    return true;
+}
+
+// ========== 新增：帮助士兵寻找目标的函数 ==========
+Building* BattleScene1::findNearestBuildingForSoldier(Soldier* soldier) {
+    if (!soldier || _buildings.empty()) return nullptr;
+
+    Building* nearest = nullptr;
+    float minDistance = FLT_MAX;
+    Vec2 soldierPos = soldier->getPosition();
+
+    for (Building* building : _buildings) {
+        if (!building || !building->isAlive()) continue;
+
+        // 计算距离
+        float distance = soldierPos.distance(building->getPosition());
+        if (distance < minDistance) {
+            minDistance = distance;
+            nearest = building;
+        }
+    }
+
+    return nearest;
+}
+
+Building* BattleScene1::findNearestPreferredBuildingForSoldier(Soldier* soldier,
+    BuildingPreference preference,
+    const std::vector<std::string>& preferredTypes) {
+    if (!soldier || _buildings.empty() || preferredTypes.empty()) return nullptr;
+
+    Building* nearest = nullptr;
+    float minDistance = FLT_MAX;
+    Vec2 soldierPos = soldier->getPosition();
+
+    for (Building* building : _buildings) {
+        if (!building || !building->isAlive()) continue;
+
+        // 检查建筑是否在偏好列表中
+        std::string buildingName = building->getBuildingName();
+        bool isPreferred = false;
+
+        for (const auto& type : preferredTypes) {
+            if (buildingName.find(type) != std::string::npos) {
+                isPreferred = true;
+                break;
+            }
+        }
+
+        if (!isPreferred) continue;
+
+        // 计算距离
+        float distance = soldierPos.distance(building->getPosition());
+        if (distance < minDistance) {
+            minDistance = distance;
+            nearest = building;
+        }
+    }
+
+    return nearest;
+}
+
+// 计算所有建筑的初始总生命值
+void BattleScene1::calculateInitialBuildingHP() {
+    _totalInitialBuildingHP = 0.0f;
+    _currentTotalBuildingHP = 0.0f;
+
+    for (Building* building : _buildings) {
+        if (building && building->isAlive()) {
+            // 注意：这里需要Building类有获取最大生命值的方法
+            // 如果Building类没有getMaxHP()，可以使用_getHP()或直接访问_HP
+            float maxHP = building->getMaxHP(); // 假设Building类有这个方法
+            _totalInitialBuildingHP += maxHP;
+            _currentTotalBuildingHP += maxHP;
+        }
+    }
+
+    CCLOG("初始建筑总生命值: %.1f", _totalInitialBuildingHP);
+    updateDestructionRateDisplay();
+}
+
+// 更新当前建筑总生命值
+void BattleScene1::updateCurrentBuildingHP() {
+    _currentTotalBuildingHP = 0.0f;
+    for (Building* building : _buildings) {
+        if (building && building->isAlive()) {
+            float currentHP = building->getCurrentHP(); // 假设Building类有这个方法
+            _currentTotalBuildingHP += currentHP;
+        }
+    }
+}
+
+// 计算当前摧毁率
+float BattleScene1::calculateDestructionRate() {
+    if (_totalInitialBuildingHP <= 0) return 100.0f; // 避免除零错误
+
+    updateCurrentBuildingHP();
+    float destroyedHP = _totalInitialBuildingHP - _currentTotalBuildingHP;
+    float destructionRate = (destroyedHP / _totalInitialBuildingHP) * 100.0f;
+
+    // 确保在0-100范围内
+    return std::max(0.0f, std::min(100.0f, destructionRate));
+}
+
+// 更新摧毁率显示
+void BattleScene1::updateDestructionRateDisplay() {
+    if (_destructionRateLabel) {
+        float destructionRate = calculateDestructionRate();
+        _destructionRateLabel->setString(StringUtils::format("DESTRUCTION:: %.1f%%", destructionRate));
+
+        // 根据摧毁率改变颜色
+        if (destructionRate >= 100.0f) {
+            _destructionRateLabel->setTextColor(Color4B::GREEN);
+        }
+        else if (destructionRate >= 70.0f) {
+            _destructionRateLabel->setTextColor(Color4B::YELLOW);
+        }
+        else {
+            _destructionRateLabel->setTextColor(Color4B::RED);
+        }
+    }
+}
+
+void BattleScene1::update(float delta) {
+    Scene::update(delta);
+
+    if (_battleEnded) return;
+
+    updateDestructionRateDisplay();
+
+    // 每0.5秒检查一次，而不是每帧
+    _defeatCheckTimer += delta;
+    if (_defeatCheckTimer >= 0.5f) {
+        _defeatCheckTimer = 0.0f;
+        checkBattleResult();
+    }
+}
+
+bool BattleScene1::areAllSoldiersReleased() const {
+    // 遍历所有兵种类型
+    std::vector<Soldier::Type> allTypes = {
+        Soldier::Type::INFANTRY,
+        Soldier::Type::ARCHER,
+        Soldier::Type::CAVALRY,
+        Soldier::Type::MAGE
+    };
+
+    for (auto type : allTypes) {
+        // 获取该兵种的最大释放数量
+        int maxCount = 0;
+        auto maxIt = _maxReleaseCounts.find(type);
+        if (maxIt != _maxReleaseCounts.end()) {
+            maxCount = maxIt->second;
+        }
+
+        // 获取该兵种已释放数量
+        int releasedCount = 0;
+        auto releasedIt = _soldierReleaseCounts.find(type);
+        if (releasedIt != _soldierReleaseCounts.end()) {
+            releasedCount = releasedIt->second;
+        }
+
+        // 如果某个兵种的已释放数量 < 最大释放数量，说明还有兵可以释放
+        if (releasedCount < maxCount) {
+            return false;
+        }
+    }
+
+    // 所有兵种都已释放到上限
+    return true;
+}
+
+// 修改 checkBattleResult 函数
+void BattleScene1::checkBattleResult() {
+    if (_battleEnded) {
+        return;
+    }
+
+    // 计算当前摧毁率
+    float destructionRate = calculateDestructionRate();
+
+    // 胜利条件：摧毁率达到100%（所有建筑被摧毁）
+    if (destructionRate >= 100.0f) {
+        endBattle();
+        showVictoryScene();
+        return;
+    }
+    
+
+    // 失败条件：所有兵种都已释放到上限，并且所有已释放士兵都已死亡，且建筑未完全摧毁
+        // 失败条件：直接检查，不再延迟
+        if (_releasedSoldiersCount > 0 && areAllSoldiersReleased()&& !checkIfAnySoldierAlive() && destructionRate < 100.0f) {
+            endBattle();
+            showDefeatScene();
+        }
+}
+
+bool BattleScene1::checkIfAnySoldierAlive() {
+    // 检查活跃士兵列表
+    for (Soldier* soldier : _activeSoldiers) {
+        if (soldier && soldier->isAlive()) {
+            return true;
+        }
+    }
+
+    // 检查攻击队列
+    std::queue<Soldier*> tempQueue = _attackQueue;
+    while (!tempQueue.empty()) {
+        Soldier* soldier = tempQueue.front();
+        if (soldier && soldier->isAlive()) {
+            return true;
+        }
+        tempQueue.pop();
+    }
+
+    // 注意：销毁队列中的士兵已经标记为死亡，不需要检查
+    // 如果士兵正在被销毁但还没从队列中移除，它们的状态应该是DEAD
+
+    return false;
+}
+
+// 结束战斗（停止所有活动）
+void BattleScene1::endBattle() {
+    _battleEnded = true;
+
+    // 停止所有士兵的动作
+    for (Soldier* soldier : _activeSoldiers) {
+        if (soldier) {
+            soldier->stopAllActions();
+            soldier->stopAttacking();
+            soldier->stopTakeDamage();
+        }
+    }
+
+    // 停止所有建筑的攻击AI
+    for (Building* building : _buildings) {
+        if (building) {
+            building->stopAllActions();
+        }
+    }
+
+    // 停止场景更新
+    this->unscheduleUpdate();
+
+    // 禁用触摸事件
+    _eventDispatcher->removeEventListenersForTarget(this);
+
+    CCLOG("战斗结束！");
+}
+
+// 显示胜利界面
+void BattleScene1::showVictoryScene() {
+    auto visibleSize = Director::getInstance()->getVisibleSize();
+
+    // 创建胜利背景遮罩
+    auto victoryLayer = LayerColor::create(Color4B(0, 0, 0, 180), visibleSize.width, visibleSize.height);
+    victoryLayer->setPosition(Vec2::ZERO);
+    victoryLayer->setName("VictoryLayer");
+    this->addChild(victoryLayer, 1000);
+
+    // 胜利标题
+    auto victoryTitle = Label::createWithSystemFont("VICTORY!", "Arial", 72);
+    victoryTitle->setPosition(Vec2(visibleSize.width / 2, visibleSize.height * 0.7f));
+    victoryTitle->setTextColor(Color4B::GREEN);
+    victoryTitle->setOpacity(255); // 强制不透明度
+    victoryTitle->setVisible(true);
+    victoryLayer->addChild(victoryTitle);
+
+    // 摧毁率显示
+    float destructionRate = calculateDestructionRate();
+    auto rateLabel = Label::createWithTTF(
+        StringUtils::format("DESTRUCTION:%.1f%%", destructionRate),
+        "fonts/Marker Felt.ttf", 36
+    );
+    rateLabel->setPosition(Vec2(visibleSize.width / 2, visibleSize.height * 0.55f));
+    rateLabel->setTextColor(Color4B::YELLOW);
+    victoryLayer->addChild(rateLabel);
+
+    // 使用简单的旋转星星动画代替粒子系统（调整到背景位置）
+    auto star = Sprite::create("star.png"); // 确保有这个图片
+    if (!star) {
+        // 如果没有star.png，创建一个简单的星星形状
+        star = Sprite::create();
+        star->setTextureRect(Rect(0, 0, 50, 50));
+        star->setColor(Color3B::YELLOW);
+    }
+    // 将星星放在背景位置（屏幕下方），缩小，并且降低zOrder
+    star->setPosition(Vec2(visibleSize.width / 2, visibleSize.height / 2)); // 下移到按钮区域下方
+    star->setScale(0.5f); // 适当缩小
+    star->setLocalZOrder(-1); // 确保在按钮和文字后面
+    star->setOpacity(150); // 降低不透明度，作为背景元素
+    victoryLayer->addChild(star);
+
+    // 简单的缩放和旋转动画
+    auto scaleUp = ScaleTo::create(0.5f, 1.1f); // 缩小动画幅度
+    auto scaleDown = ScaleTo::create(0.5f, 0.8f);
+    auto rotate = RotateBy::create(1.0f, 360);
+    auto sequence = Sequence::create(scaleUp, scaleDown, nullptr);
+    auto repeatScale = RepeatForever::create(sequence);
+    auto repeatRotate = RepeatForever::create(rotate);
+
+    star->runAction(repeatScale);
+    star->runAction(repeatRotate);
+
+    // 返回营地按钮（放在星星后面）
+    auto returnButton = ui::Button::create("back.png");
+    returnButton->setScale(0.3f); // 缩放30%
+    returnButton->setPosition(Vec2(visibleSize.width / 2, visibleSize.height * 0.35f));
+    returnButton->addClickEventListener([this](Ref* sender) {
+        this->backToCampCallback(sender);
+        });
+    victoryLayer->addChild(returnButton);
+}
+
+// 显示失败界面
+void BattleScene1::showDefeatScene() {
+    auto visibleSize = Director::getInstance()->getVisibleSize();
+
+    // 创建失败背景遮罩
+    auto defeatLayer = LayerColor::create(Color4B(0, 0, 0, 180), visibleSize.width, visibleSize.height);
+    defeatLayer->setPosition(Vec2::ZERO);
+    defeatLayer->setName("DefeatLayer");
+    this->addChild(defeatLayer, 1000);
+
+    // ========== 新增：添加背景图片 ==========
+    auto background = Sprite::create("defeat_background.png"); // 你的背景图片路径
+    if (!background) {
+        // 如果图片不存在，使用默认背景
+        background = Sprite::create();
+        background->setTextureRect(Rect(0, 0, visibleSize.width, visibleSize.height));
+        background->setColor(Color3B(50, 50, 50)); // 深灰色背景
+    }
+    background->setPosition(Vec2(visibleSize.width / 2, visibleSize.height / 2));
+    background->setOpacity(200); // 设置透明度，让黑色遮罩稍微透出来
+    defeatLayer->addChild(background, 0); // z-order设为0，确保在文字和按钮后面
+
+    // 失败标题
+    auto defeatTitle = Label::createWithSystemFont("FAIL!", "Arial", 72);
+    defeatTitle->setPosition(Vec2(visibleSize.width / 2, visibleSize.height * 0.7f));
+    defeatTitle->setTextColor(Color4B::RED);
+    defeatTitle->setOpacity(255); // 强制不透明度
+    defeatTitle->setVisible(true);
+    defeatLayer->addChild(defeatTitle);
+
+    // 摧毁率显示
+    float destructionRate = calculateDestructionRate();
+    auto rateLabel = Label::createWithTTF(
+        StringUtils::format(" DESTRUCTION:%.1f%%", destructionRate),
+        "fonts/Marker Felt.ttf", 36
+    );
+    rateLabel->setPosition(Vec2(visibleSize.width / 2, visibleSize.height * 0.55f));
+    rateLabel->setTextColor(Color4B::YELLOW);
+    defeatLayer->addChild(rateLabel);
+
+
+    // 返回营地按钮
+    auto returnButton = ui::Button::create("back.png");
+    returnButton->setScale(0.3f); // 添加这行：缩放30%
+    returnButton->setPosition(Vec2(visibleSize.width / 2, visibleSize.height * 0.35f));
+    returnButton->addClickEventListener([this](Ref* sender) {
+        this->backToCampCallback(sender);
+        });
+    defeatLayer->addChild(returnButton);
+
+}
+
+// 计算最大可释放士兵总数（仅内部使用，不显示）
+void BattleScene1::calculateMaxSoldiersCount() {
+    _totalMaxSoldiers = 0;
+    for (const auto& pair : _maxReleaseCounts) {
+        _totalMaxSoldiers += pair.second;
+    }
 }

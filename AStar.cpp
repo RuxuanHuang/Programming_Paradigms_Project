@@ -31,8 +31,6 @@ std::vector<Vec2> findPath(const Vec2& startTile, const Vec2& endTile)
 {
     std::vector<AStarNode*> openList;
     std::vector<AStarNode*> closedList;
-    CCLOG("(%.1f,%.1f) -> kkkkkkkkkkkkkkkkkk(%.1f,%.1f)",
-        startTile.x, startTile.y, endTile.x, endTile.y);
     AStarNode* start = new AStarNode{
         (int)startTile.x,
         (int)startTile.y,
@@ -85,12 +83,10 @@ std::vector<Vec2> findPath(const Vec2& startTile, const Vec2& endTile)
             int ny = current->y + dirs[i][1];
 
             if (!isWalkable(nx, ny)) {
-                CCLOG(" jjjjjjjjjjjjjjjjjj", nx, ny);
                 continue;
             }
 
             if (findAStarNode(closedList, nx, ny)) {
-                CCLOG("gggggggggggggggggggg", nx, ny);
                 continue;
             }
 

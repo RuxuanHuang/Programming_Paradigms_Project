@@ -1,5 +1,3 @@
-
-
 #ifndef __CAMP_H__
 #define __CAMP_H__
 
@@ -22,9 +20,15 @@ public:
     void clearSelection();
     void changeMapSkin();
     void enterBattleScene();
+    void openStore();
+    void createBuildingFromCard(const std::string& cardName);
+    
 private:
     // --- 场景内部变量 ---
-
+	Sprite* mapSprite;  // 地图精灵
+    Building* _newBuilding;
+    cocos2d::Vector<Building*> _allBuildings;  // 存储所有建筑的向量
+    std::map<std::string, int> _currentBuildingCounts;  // 建筑类型 -> 当前数量
     // 使用基类指针存储建筑对象
     Building* _building;
 
@@ -44,12 +48,13 @@ private:
     Building* _selectedBuilding = nullptr;
     bool _mapMoved = false;
 
-    Store* _store = nullptr;
-    // 新增：保存操作栏实例（用于设置换肤回调）
+    
+    // 保存操作栏实例（用于设置换肤回调）
     BuildingActionBar* _globalActionBar = nullptr;
-    // 新增：当前地图皮肤名称
+    // 当前地图皮肤名称
     std::string _currentMapSkin = "others/Camp.png";
-
+    void onEnter()override;
+	void onExit()override;
 };
 
 #endif // __CAMP_H__

@@ -15,10 +15,59 @@ using namespace ui;
 class BattleScene1 : public cocos2d::Scene
 {
 private:
+    float _defeatCheckTimer;
+    bool _defeatCheckScheduled;
+private:
+    bool areAllSoldiersReleased() const;
+    bool checkIfAnySoldierAlive();
+
+    // ========== 胜负判定系统 ==========
+    float _totalInitialBuildingHP;     // 所有建筑的初始总生命值
+    float _currentTotalBuildingHP;     // 当前所有建筑的总生命值
+    bool _battleEnded;                 // 战斗是否已结束
+    bool _allSoldiersReleased;         // 是否所有可释放士兵都已释放
+    int _totalMaxSoldiers;             // 可释放士兵总数
+    int _releasedSoldiersCount;        // 已释放士兵数量
+
+    // 胜负判定相关方法
+    void calculateInitialBuildingHP(); // 计算初始建筑总生命值
+    void calculateMaxSoldiersCount();  // 计算最大可释放士兵数
+    void updateCurrentBuildingHP();    // 更新当前建筑总生命值
+    float calculateDestructionRate();  // 计算当前摧毁率（0-100）
+    void checkBattleResult();          // 检查战斗结果
+    void showVictoryScene();           // 显示胜利界面
+    void showDefeatScene();            // 显示失败界面
+    void endBattle();                  // 结束战斗（停止所有活动）
+
+    // ========== 界面元素 ==========
+    cocos2d::ui::Text* _destructionRateLabel; // 摧毁率显示标签
+    cocos2d::ui::Text* _battleResultLabel;    // 战斗结果标签
+
     std::vector<Building*> _buildings;  // 存储所有建筑
     Building* _targetBuilding = nullptr; // 目标建筑（可以改为多个目标）
 
 public:
+    virtual void update(float delta) override;
+    // ========== 新增：公有方法 ==========
+    void updateDestructionRateDisplay(); // 更新摧毁率显示
+
+    // 新增：帮助士兵寻找目标
+   // 新增：帮助士兵寻找目标的公共方法
+    Building* findNearestBuildingForSoldier(Soldier* soldier);
+    Building* findNearestPreferredBuildingForSoldier(Soldier* soldier,
+        BuildingPreference preference,
+        const std::vector<std::string>& preferredTypes);
+
+    // 返回 true 表示对 b 成功造成了伤害（b 仍在场景中且 isAlive），false 表示 b 不再有效
+    bool applyDamageToBuilding(Building* b, float damage);
+
+    void freeTile(int tileX, int tileY);
+    void onBuildingDestroyed(Building* b);
+
+    void enqueueSoldierForDestruction(Soldier* soldier);
+
+    Building* getNextTargetBuilding(Soldier* soldier);
+
     void visualizeBlockedTiles();
     // 添加这些公共方法
     void setTargetBuilding(Building* building) { _targetBuilding = building; }
@@ -61,6 +110,12 @@ public:
     void processAttackQueue(); // 处理队列（启动下一个士兵受击）
     bool isInAttackRange(Soldier* soldier); // 判断是否进入攻击范围
     
+    // 提供给建筑调用的接口
+    const std::vector<Soldier*>& getActiveSoldiers() const { return _activeSoldiers; }
+    // 提供一个移除士兵的接口
+    void removeSoldierFromList(Soldier* soldier);
+private:
+    std::vector<Soldier*> _activeSoldiers; // 存储当前存活的士兵
 private:
     // 新增：返回按钮
     cocos2d::ui::Button* _backButton = nullptr;

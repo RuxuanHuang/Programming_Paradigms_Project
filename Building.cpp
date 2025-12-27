@@ -24,18 +24,18 @@ Building::Building() :
     _level(1),
     _HP(0),
     _cost(0),
+    _costType("Gold"),
     _maxLevel(3)
-
 {
 }
 
 Building* Building::create(const std::string& buildingFile,
-    bool isHownTown,
+    bool isHomeTown,
     const std::string turfFile,
     float buildingScale)
 {
     Building* ret = new (std::nothrow) Building();
-    ret->setIsHownTown(isHownTown);
+    ret->setIsHownTown(isHomeTown);
     if (ret && ret->init(buildingFile, turfFile, buildingScale))
     {
         ret->autorelease();
@@ -84,8 +84,8 @@ bool Building::init(const std::string& buildingFile,
 
     _eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);
 
-
-
+    //血条
+    this->initHPBar(false);
 
     return true;
 }
@@ -134,7 +134,7 @@ void Building::setBuildingTileSize()
     if (!_turf) return;
     float targetWidth;
     float targetHeight;
-    if (!_isHownTown) {
+    if (!_isHomeTown) {
         targetWidth = BATTLE_MAP_TILE_W * _size;
         targetHeight = BATTLE_MAP_TILE_H * _size;
     }
@@ -165,7 +165,7 @@ void Building::onBuildingMouseDown(Event* event)
     if (!isClickingInTurf(this->_parent, e))
         return;
 
-    if (_isHownTown) {
+    if (_isHomeTown) {
         // 通知 Camp：我要被选中了
         auto camp = dynamic_cast<Camp*>(Director::getInstance()->getRunningScene());
         if (camp) {
@@ -224,8 +224,9 @@ void Building::onBuildingMouseMove(Event* event)
 void Building::setTilePosition(Node* mapNode, float tileX, float tileY)
 {
     if (!mapNode) return;
-
-    Vec2 pos = tileToMapLocal(mapNode, tileX, tileY, _isHownTown);
+    _tileX = tileX;  // 必须确保这两行存在
+    _tileY = tileY;
+    Vec2 pos = tileToMapLocal(mapNode, tileX, tileY, _isHomeTown);
     this->setPosition(pos);
 }
 
@@ -269,6 +270,7 @@ void Building::drawDebugMapRange(Node* mapNode)
 
         }
     }
+
 
     // 中心点
     debugNode->drawDot(mapCenter, 2.0f, Color4F::RED);
@@ -356,7 +358,7 @@ bool Building::isClickingInTurf(Node* mapNode, cocos2d::EventMouse* e)
     Vec2 worldCenter = this->convertToWorldSpace(Vec2::ZERO);
     Vec2 mapLocal = mapNode->convertToNodeSpace(worldCenter);
 
-    Vec2 tile1 = mapLocalToTile(mapNode, mapLocal, _isHownTown);
+    Vec2 tile1 = mapLocalToTile(mapNode, mapLocal, _isHomeTown);
 
     Size mapSize = mapNode->getContentSize();
     Vec2 mapCenter(mapSize.width / 2 + offsetX, mapSize.height / 2 + offsetY);
@@ -376,7 +378,7 @@ bool Building::isClickingInTurf(Node* mapNode, cocos2d::EventMouse* e)
     Vec2 mapLocal2 = mapNode->convertToNodeSpace(clickPointWorld2);
 
 
-    Vec2 tile2 = mapLocalToTile(mapNode, mapLocal2, _isHownTown);
+    Vec2 tile2 = mapLocalToTile(mapNode, mapLocal2, _isHomeTown);
 
     Size mapSize2 = mapNode->getContentSize();
 
@@ -414,6 +416,8 @@ void Building::setLevel(int level)
     if (_level != level) {
         _level = level;
 
+		_HP = _upgradeSprites[_level-1]._hp;
+		_cost = _upgradeSprites[_level - 1]._upgradeCost;
         // 如果有对应等级的图片，就更换
         auto it = _upgradeSprites.find(_level);
         if (it != _upgradeSprites.end() && !it->second.spriteFile.empty()) {
@@ -529,7 +533,7 @@ void Building::setSelected(bool selected)
 
         this->runAction(ScaleTo::create(0.1f, this->getScale() * 1.05f));
         showInfoLabel();
-        if (_isHownTown) {
+        if (_isHomeTown) {
             if (_actionBar == nullptr) {
                 _actionBar = BuildingActionBar::create();
                 _actionBar->setVisible(false);
@@ -554,7 +558,7 @@ void Building::setSelected(bool selected)
 
         this->runAction(ScaleTo::create(0.1f, this->getScale() / 1.05f));
         hideInfoLabel();
-        if (_isHownTown) {
+        if (_isHomeTown) {
             _actionBar->hide();
         }
 
@@ -573,7 +577,27 @@ void Building::onInfoButtonClicked()
 void Building::onUpgradeButtonClicked()
 {
     CCLOG("升级按钮: %s Lv.%d", _buildingName.c_str(), _level);
-    upgrade();  // 直接调用升级
+    BuildingManager* buildingManager = BuildingManager::getInstance();
+    int townHallLevel = buildingManager->getTownhallLevel();
+	if (!buildingManager->canUpgradeBuilding(_buildingType, _level, townHallLevel)) {
+        showUpgradeMessage("Higher level of Town Hall is needed to upgrade!", Color4B::RED);
+		return;
+	}
+    ResourceManager* resourceManager = ResourceManager::getInstance();
+	if (_costType=="Gold"){
+        if (!resourceManager->canAffordGold(_cost)) {
+            showUpgradeMessage("Not Enough Gold!Cannot Upgrade!", Color4B::RED);
+            return;
+        }
+	}
+    else {
+		if (!resourceManager->canAffordElixir(_cost)) {
+            showUpgradeMessage("Not Enough Elixir!Cannot Upgrade!", Color4B::RED);
+			return;
+		}
+    }
+
+    upgrade();  // 调用升级
 }
 
 // ========== 设置升级图片 ==========
@@ -586,13 +610,13 @@ void Building::setUpgradeSprite(int level, const std::string& spriteFile)
 void Building::upgrade()
 {
     if (_level >= _maxLevel) {
-
+        showUpgradeMessage("Already max level!Cannot Upgrade!", Color4B::RED);
         return;
     }
 
     int oldLevel = _level;
     _level++;
-
+    showUpgradeMessage("Successful Upgrade!", Color4B::GREEN);
     CCLOG("建筑 %s 从 %d 级升级到 %d 级",
         _buildingName.c_str(), oldLevel, _level);
 
@@ -603,18 +627,33 @@ void Building::upgrade()
     }
 
     _HP = _upgradeSprites[_level]._hp;
+	//扣钱，并且更新下一级的花费
+    ResourceManager* resourceManager = ResourceManager::getInstance();
+    if (_costType == "Gold") {
+        if (!resourceManager->makeGoldPurchase(_cost)) {
+        }
+    }
+    else {
+        if (!resourceManager->makeElixirPurchase(_cost)) {
+        }
+    }
     _cost = _upgradeSprites[_level]._upgradeCost;
 
     // 更新标签
     if (_isSelected && _infoLabel) {
         updateInfoLabel();
     }
+    // 升级后最大血量变化
+    _HP = _upgradeSprites[_level]._hp;
+    _currentHP = _HP; // 升级通常回复满血
 
+    updateHPBar();
+    
     // 播放升级特效
     playUpgradeEffect();
 }
 
-// ========== 新增：更换建筑精灵（保持草皮不变）==========
+//换图
 void Building::changeBuildingSprite(const std::string& newSpriteFile)
 {
     if (!_turf) return;  // 必须有草皮
@@ -632,10 +671,10 @@ void Building::changeBuildingSprite(const std::string& newSpriteFile)
         return;
     }
 
-    // 添加到草皮上（继承你的原有结构）
+    // 添加到草皮上
     this->addChild(_buildingSprite, 1);  // z-order: 1，在草皮上面
 
-    // 保持原有设置：位置和锚点
+    // 保持原有设置
     _buildingSprite->setPosition(Vec2::ZERO);
     _buildingSprite->setAnchorPoint(Vec2(0.5f, 0.5f));
 
@@ -650,7 +689,7 @@ void Building::changeBuildingSprite(const std::string& newSpriteFile)
     CCLOG("建筑 %s 更换为图片: %s", _buildingName.c_str(), newSpriteFile.c_str());
 }
 
-// ========== 升级特效 ==========
+// 升级特效
 void Building::playUpgradeEffect()
 {
     // 金色闪烁
@@ -661,7 +700,30 @@ void Building::playUpgradeEffect()
     }
 }
 
-///////////////////////////
+void Building::showUpgradeMessage(const std::string& message, Color4B color) {
+	auto visibleSize = Director::getInstance()->getVisibleSize();
+	// 创建消息标签
+	auto messageLabel = Label::createWithTTF(message, "fonts/arial.ttf", 40);
+	messageLabel->setPosition(Vec2(visibleSize.width / 2, visibleSize.height / 2));
+	messageLabel->setTextColor(color);
+	messageLabel->setOpacity(0);
+	//加点特效让它更醒目
+	//messageLabel->enableOutline(Color4B::BLACK, 6);
+	//messageLabel->enableGlow(Color4B(255, 255, 255, 128));
+	//messageLabel->enableShadow(Color4B(0, 0, 0, 150), Size(3, -3), 3);
+
+    auto scene = Director::getInstance()->getRunningScene();
+	scene->addChild(messageLabel, 10);
+	// 淡入淡出动画
+	auto fadeIn = FadeIn::create(0.3f);
+	auto delay = DelayTime::create(2.2f);
+	auto fadeOut = FadeOut::create(0.5f);
+	auto remove = CallFunc::create([messageLabel]() {
+		messageLabel->removeFromParent();
+		});
+	messageLabel->runAction(Sequence::create(fadeIn, delay, fadeOut, remove, nullptr));
+}
+
 void Building::occupyTiles(float tileX, float tileY)
 {
     _tileX = tileX;
@@ -693,4 +755,106 @@ std::vector<cocos2d::Vec2> Building::getAttackTiles()
         }
     }
     return result;
+}
+//血条
+void Building::initHPBar(bool immediateShow) {
+    if (_hpBar) return;
+
+    _currentHP = _HP; // 初始血量
+    if (immediateShow) {
+        // 1. 创建背景
+        _hpBarBg = Sprite::create();
+        _hpBarBg->setColor(Color3B(80, 80, 80));
+        _hpBarBg->setTextureRect(Rect(0, 0, 64, 10));
+        _hpBarBg->setAnchorPoint(Vec2(0.5f, 0.5f));
+
+        // 2. 创建 LoadingBar
+        _hpBar = ui::LoadingBar::create();
+        _hpBar->loadTexture("hp_red.png");
+        _hpBar->ignoreContentAdaptWithSize(false);
+        _hpBar->setContentSize(Size(60, 8));
+        _hpBar->setPercent(100);
+        _hpBar->setDirection(ui::LoadingBar::Direction::LEFT);
+        _hpBar->setAnchorPoint(Vec2(0.5f, 0.5f));
+
+        // 3. 计算位置（在建筑上方）
+        float barY = _turf ? (_turf->getContentSize().height * _turf->getScaleY() / 2 + 15) : 40.0f;
+        Vec2 barPos = Vec2(0, barY);
+
+        _hpBarBg->setPosition(barPos);
+        _hpBar->setPosition(barPos);
+
+        this->addChild(_hpBarBg, 98);
+        this->addChild(_hpBar, 99);
+    }
+}
+void Building::updateHPBar() {
+    if (!_hpBar || _HP <= 0) return;
+
+    // 计算百分比
+    float percent = ((float)_currentHP / (float)_HP) * 100.0f;
+    _hpBar->setPercent(std::max(0.0f, percent));
+
+}
+void Building::reduceHP(float damage) {
+    if (!isAlive()) return;
+    _currentHP -= damage;
+    if (_currentHP < 0) _currentHP = 0;
+    this->updateHPBar();
+    if (_currentHP <= 0) {
+        _currentHP = 0;
+        // 建筑摧毁逻辑
+        CCLOG("建筑 %s 已被摧毁！", _buildingName.c_str());
+        // this->removeFromParent(); // 暂时注释，避免崩溃，可改为变灰
+        this->onDestroyed();
+    }
+}
+void Building::onDestroyed() {
+    CCLOG("建筑 %s onDestroyed start: %p", _buildingName.c_str(), this);
+
+    // 暂时保留，防止在下面通知过程中被外部 release 导致重入删除
+    this->retain();
+
+    // 视觉和状态处理
+    this->setColor(Color3B::GRAY);
+    if (_hpBar) _hpBar->setVisible(false);
+    _currentHP = 0;
+
+    // 释放占用格子（与 occupyTiles 对称）
+    int startX = static_cast<int>(_tileX - _size / 2);
+    int startY = static_cast<int>(_tileY - _size / 2);
+    auto running = dynamic_cast<BattleScene1*>(Director::getInstance()->getRunningScene());
+    if (running) {
+        for (int x = 0; x < _size; ++x) {
+            for (int y = 0; y < _size; ++y) {
+                int tx = startX + x;
+                int ty = startY + y;
+                running->freeTile(tx, ty);
+            }
+        }
+    }
+
+    // 通知场景（场景会从 _buildings 中移除并通知士兵）
+    if (running) {
+        running->onBuildingDestroyed(this);
+    }
+
+    // 停止自己的动作、调度，避免后续再被触发
+    this->stopAllActions();
+    this->unscheduleAllCallbacks();
+
+    // 安排延迟移除（安全地从父节点移除）
+    this->runAction(Sequence::create(
+        DelayTime::create(0.25f),
+        FadeOut::create(0.25f),
+        CallFunc::create([this]() {
+            this->removeFromParent();
+            }),
+        nullptr
+    ));
+
+    // 释放刚才的临时保留引用
+    this->release();
+
+    CCLOG("建筑 %s onDestroyed end: %p", _buildingName.c_str(), this);
 }

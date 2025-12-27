@@ -5,6 +5,7 @@
 
 class Archer : public Soldier {
 public:
+    virtual ~Archer();
     static Archer* create(Vec2 pos, float scale);
     virtual bool init(Vec2 pos, float scale) override;
     virtual void moveToTarget(Vec2 targetPos, float duration) override;

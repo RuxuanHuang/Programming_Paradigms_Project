@@ -8,7 +8,11 @@
 #include"ResourceCollector.h"
 #include"Army_Camp.h"
 #include "BattleScene1.h" 
-
+#include"Archer_Tower.h"
+#include"Wall.h"
+#include"Cannon.h"
+#include "BuildingManager.h"
+#include"resources.h"
 USING_NS_CC;
 
 // 定义Tag常量
@@ -44,12 +48,15 @@ bool Camp::init()
     auto visibleSize = Director::getInstance()->getVisibleSize();
     Vec2 origin = Director::getInstance()->getVisibleOrigin();
 
-    _store = Store::create();
-    _store->setVisible(false);     // 初始隐藏
-    this->addChild(_store, 1000);  // UI 层级要高
+    ResourceManager* resourceMgr = ResourceManager::getInstance();
+
+    // 创建资源显示UI（右上角）
+    resourceMgr->createResourceDisplay(this);
+    
+   
 
     // 地图精灵初始化
-    auto mapSprite = Sprite::create("others/Camp.png");
+    mapSprite = Sprite::create("others/Camp.png");
     if (mapSprite == nullptr)
     {
         problemLoading("'Campaaa.png'");
@@ -89,7 +96,8 @@ bool Camp::init()
     else {
         problemLoading("'FightingButton.png'");
     }
-
+    BuildingManager* manager = BuildingManager::getInstance();
+    manager->initialize();
     // ========== 创建大本营 ==========
     auto townHall = TownHall::create("Town_hall/Town_hall1.png");
     if (townHall == nullptr)
@@ -100,11 +108,12 @@ bool Camp::init()
         townHall->setTilePosition(mapSprite, 0.5, 0.5);
         mapSprite->addChild(townHall, 1);
         _building = townHall;
-
+		manager->addBuilding(townHall);
+        
         // 显示网格范围
          //townHall->drawDebugMapRange(mapSprite);
     }
-
+    townHall->setBuildingType("TownHall");
     auto BuilderHut = BuildersHut::create("others/Builders_Hut1.png");
     if (BuilderHut == nullptr)
     {
@@ -114,72 +123,25 @@ bool Camp::init()
         BuilderHut->setTilePosition(mapSprite, 5.5, 5.5);
         mapSprite->addChild(BuilderHut, 1);
         _building = BuilderHut;
+        manager->addBuilding(BuilderHut);
     }
+    BuilderHut->setBuildingType("BuilderHut");
 
     auto StoreButton = Button::create("Buttons/StoreButton.png","","");
     if (StoreButton) {
 
         StoreButton->setScale(0.15f);
-        StoreButton->setPosition(Vec2(visibleSize.width * 0.95f, 180));
+        StoreButton->setPosition(Vec2(visibleSize.width * 0.95f, 100));
         this->addChild(StoreButton, 100);
 
         StoreButton->addClickEventListener([=](Ref*) {
-            _store->setVisible(true);
+            openStore();
             });
 
     }
     
-    auto GoldStorage = GoldStorage::create("Gold_Storage/Gold_Storage1.png");
-    if (GoldStorage == nullptr)
-    {
-        problemLoading("'Gold_Storage1.png' ");
-    }
-    else {
-        GoldStorage->setTilePosition(mapSprite, -5, -5);
-        mapSprite->addChild(GoldStorage, 1);
-        _building = GoldStorage;
-    }
-    auto ElixirStorage = ElixirStorage::create("Elixir_Storage/Elixir_Storage1.png");
-    if (GoldStorage == nullptr)
-    {
-        problemLoading("'Elixir_Storage1.png' ");
-    }
-    else {
-        ElixirStorage->setTilePosition(mapSprite, -10, -10);
-        mapSprite->addChild(ElixirStorage, 1);
-        _building = ElixirStorage;
-    }
-    auto GoldMine = GoldMine::create("Gold_Mine/Gold_Mine1.png");
-    if (GoldMine == nullptr)
-    {
-        problemLoading("'Gold_Mine1.png' ");
-    }
-    else {
-        GoldMine->setTilePosition(mapSprite, 5, -5);
-        mapSprite->addChild(GoldMine, 1);
-        _building = GoldMine;
-    }
-    auto ElixirCollector = ElixirCollector::create("Elixir_Collector/Elixir_Collector1.png");
-    if (GoldMine == nullptr)
-    {
-        problemLoading("'Elixir_Collector1.png' ");
-    }
-    else {
-        ElixirCollector->setTilePosition(mapSprite, 12,13);
-        mapSprite->addChild(ElixirCollector, 1);
-        _building = ElixirCollector;
-    }
-    auto Army = ArmyCamp::create("Army_Camp/Army_Camp1.png");
-    if (Army == nullptr)
-    {
-        problemLoading("'Army_Camp1.png' ");
-    }
-    else {
-        Army->setTilePosition(mapSprite, -12, 13);
-        mapSprite->addChild(Army, 1);
-        _building = Army;
-    }
-
+  
+    
     // 场景全局/地图事件监听器 (处理滚轮和非房子区域的拖动)
     auto _mouseListener = EventListenerMouse::create();
 
@@ -190,7 +152,6 @@ bool Camp::init()
 
     // 注册监听器 (处理滚轮和地图拖动)
     _eventDispatcher->addEventListenerWithSceneGraphPriority(_mouseListener, this);
-
     return true;
 }
 
@@ -290,7 +251,7 @@ void Camp::onMapMouseMove(Event* event)
 
 
 // ----------------------------------------------------------------------------------
-// MARK: - 边界限制逻辑（保持不变）
+// MARK: - 边界限制逻辑
 // ----------------------------------------------------------------------------------
 
 void Camp::limitMapPos(Sprite* sprite)
@@ -366,7 +327,7 @@ void Camp::selectBuilding(Building* building)
         // 标记建筑为选中
         _selectedBuilding->setSelected(true);
 
-        // ========== 别是否为大本营 ==========
+        // 是否为大本营
         // 通过动态类型转换判断
         TownHall* townHall = dynamic_cast<TownHall*>(_selectedBuilding);
         if (townHall) {
@@ -404,9 +365,9 @@ void Camp::changeMapSkin()
     auto mapSprite = dynamic_cast<Sprite*>(this->getChildByTag(CAMP_SPRITE_TAG));
     if (!mapSprite) return;
 
-    // 切换地图皮肤（示例：循环切换两种皮肤）
+    // 切换地图皮肤
     if (_currentMapSkin == "others/Camp.png") {
-        _currentMapSkin = "others/Campaaa.png"; // 你的第二个地图图片
+        _currentMapSkin = "others/Campaaa.png"; 
     }
     else {
         _currentMapSkin = "others/Camp.png";
@@ -432,9 +393,87 @@ void Camp::changeMapSkin()
 void Camp::enterBattleScene()
 {
     // 切换到战斗场景
-    auto battleScene = BattleScene1::createScene(); 
-
-    
-    Director::getInstance()->replaceScene(battleScene);
+    auto battleScene = BattleScene1::createScene();  
+    Director::getInstance()->pushScene(battleScene);
    
+}
+
+// 在大本营场景中
+void Camp::openStore() {
+    auto storeScene = Store::create();
+
+    // 设置卡片选择回调
+    storeScene->setCardSelectCallback([this](const std::string& cardName) {
+        // 根据卡片名称创建对应的建筑
+        this->createBuildingFromCard(cardName);
+        });
+
+    Director::getInstance()->pushScene(storeScene);
+}
+
+void Camp::createBuildingFromCard(const std::string& cardName) {
+    BuildingManager* buildingManager = BuildingManager::getInstance();
+
+    Building* newBuilding = buildingManager->createBuildingFromCard(cardName);
+    if (!newBuilding) {
+        CCLOG("错误: 创建建筑失败: %s", cardName.c_str());
+        return;
+    }
+   
+    if (newBuilding) {
+
+        newBuilding->setTilePosition(mapSprite, 0, 0);
+        // 添加到地图上
+        mapSprite->addChild(newBuilding, 1);
+        // 添加到存储向量中
+        buildingManager->addBuilding(newBuilding);
+        // 延迟一帧创建操作栏，确保已经完全回到了Camp场景
+        this->scheduleOnce([this, newBuilding](float dt) {
+            // 再次检查建筑是否还存在
+            if (newBuilding && newBuilding->getParent()) {
+                // 创建操作栏（如果还没有的话）
+                if (newBuilding->_actionBar == nullptr) {
+                    newBuilding->_actionBar = BuildingActionBar::create();
+                    newBuilding->_actionBar->setVisible(false);
+
+                    // 添加到Camp场景
+                    this->addChild(newBuilding->_actionBar, 1000);
+
+                    CCLOG("为建筑创建操作栏，父节点: %p", this);
+                }
+
+                // 选择新建筑
+                this->selectBuilding(newBuilding);
+
+                CCLOG("延迟选择建筑完成");
+            }
+            else {
+                CCLOG("警告：建筑在延迟回调中无效");
+            }
+            }, 0.01f, "create_action_bar_" + cardName); // 使用很小的延迟
+
+        CCLOG("成功创建建筑: %s，当前总建筑数: %zu", cardName.c_str(), _allBuildings.size());
+    }
+    else {
+        CCLOG("创建建筑失败，可能图片路径错误: %s", cardName.c_str());
+    }
+}
+
+
+// 场景进入时
+void Camp::onEnter()
+{
+    Scene::onEnter();
+
+    // 创建资源显示
+    ResourceManager::getInstance()->createResourceDisplay(this);
+}
+
+// 场景退出时
+void Camp ::onExit()
+{
+    // 不清除显示，让ResourceManager只清空指针
+    ResourceManager::getInstance()->removeResourceDisplay();
+
+    Scene::onExit();
 }
