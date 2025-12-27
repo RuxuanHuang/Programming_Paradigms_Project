@@ -1,13 +1,13 @@
 #include "resources.h"
 
-// é™æ€æˆå‘˜åˆå§‹åŒ–
+// ¾²Ì¬³ÉÔ±³õÊ¼»¯
 ResourceManager* ResourceManager::s_instance = nullptr;
 
-// ============ Resource åŸºç±»å®ç° ============
+// ============ Resource »ùÀàÊµÏÖ ============
 Resource::Resource(const std::string& name, int initialAmount)
     : m_name(name)
     , m_amount(initialAmount)
-    , m_maxLimit(1000)  // é»˜è®¤æœ€å¤§å€¼
+    , m_maxLimit(1000)  // Ä¬ÈÏ×î´óÖµ
 {
     CCLOG("Resource %s created with amount: %d", name.c_str(), initialAmount);
 }
@@ -19,16 +19,17 @@ bool Resource::add(int amount)
         return false;
     }
 
-    // æ£€æŸ¥æ˜¯å¦ä¼šè¶…è¿‡ä¸Šé™
+    // ¼ì²éÊÇ·ñ»á³¬¹ıÉÏÏŞ
     if (m_maxLimit > 0 && (m_amount + amount) > m_maxLimit) {
         CCLOG("Warning: Adding %d to %s would exceed max limit %d",
             amount, m_name.c_str(), m_maxLimit);
         m_amount = m_maxLimit;
-        return true;  // è¿˜æ˜¯è¿”å›trueï¼Œåªæ˜¯è¾¾åˆ°ä¸Šé™
+        return true;  // »¹ÊÇ·µ»Øtrue£¬Ö»ÊÇ´ïµ½ÉÏÏŞ
     }
 
     m_amount += amount;
     CCLOG("%s increased by %d, now: %d", m_name.c_str(), amount, m_amount);
+    ResourceManager::getInstance()->updateResourceDisplay();
     return true;
 }
 
@@ -47,6 +48,7 @@ bool Resource::subtract(int amount)
 
     m_amount -= amount;
     CCLOG("%s decreased by %d, now: %d", m_name.c_str(), amount, m_amount);
+    ResourceManager::getInstance()->updateResourceDisplay();
     return true;
 }
 
@@ -65,11 +67,11 @@ bool Resource::canAfford(int cost) const
     return canAfford;
 }
 
-// ============ Gold å­ç±»å®ç° ============
+// ============ Gold ×ÓÀàÊµÏÖ ============
 Gold::Gold(int initialAmount)
     : Resource("Gold", initialAmount)
 {
-    setMaxLimit(1000);  // é‡‘å¸ä¸Šé™è¾ƒé«˜
+    setMaxLimit(2500);  
 }
 
 void Gold::earnFromBattle(int reward)
@@ -79,10 +81,10 @@ void Gold::earnFromBattle(int reward)
         return;
     }
 
-    // æˆ˜æ–—è·å¾—æœ‰é¢å¤–å¥–åŠ±
+    // Õ½¶·»ñµÃÓĞ¶îÍâ½±Àø
     int actualReward = reward;
     if (!isFull()) {
-        actualReward = reward;  // è¿™é‡Œå¯ä»¥æ·»åŠ é¢å¤–é€»è¾‘
+        actualReward = reward;  // ÕâÀï¿ÉÒÔÌí¼Ó¶îÍâÂß¼­
         add(actualReward);
     }
 }
@@ -104,16 +106,16 @@ bool Gold::spendForUpgrade(int cost)
         return false;
     }
 
-
+   
 
     return subtract(cost);
 }
 
-// ============ Elixir å­ç±»å®ç° ============
+// ============ Elixir ×ÓÀàÊµÏÖ ============
 Elixir::Elixir(int initialAmount)
     : Resource("Elixir", initialAmount)
 {
-    setMaxLimit(1000);  // åœ£æ°´ä¸Šé™è¾ƒä½
+    setMaxLimit(2500);  
 }
 
 void Elixir::earnFromQuest(int reward)
@@ -123,7 +125,7 @@ void Elixir::earnFromQuest(int reward)
         return;
     }
 
-    // ä»»åŠ¡è·å¾—å¯èƒ½æœ‰é¢å¤–å¤„ç†
+    // ÈÎÎñ»ñµÃ¿ÉÄÜÓĞ¶îÍâ´¦Àí
     int actualReward = reward;
     if (!isFull()) {
         actualReward = reward;
@@ -148,26 +150,35 @@ bool Elixir::spendForInstant(int cost)
         return false;
     }
 
-    // ç«‹å³å®ŒæˆèŠ±è´¹æœ‰ç‰¹æ®Šæ£€æŸ¥
-    if (getAmount() < cost * 2) {  // ç¡®ä¿æœ‰è¶³å¤Ÿçš„æ°´æ™¶å‚¨å¤‡
+    // Á¢¼´Íê³É»¨·ÑÓĞÌØÊâ¼ì²é
+    if (getAmount() < cost * 2) {  // È·±£ÓĞ×ã¹»µÄË®¾§´¢±¸
         CCLOG("Warning: Low crystal reserve for instant completion");
     }
 
     return subtract(cost);
 }
 
-// ============ ResourceManager å®ç° ============
+// ============ ResourceManager ÊµÏÖ ============
 ResourceManager::ResourceManager()
+    : m_gold(nullptr)
+    , m_elixir(nullptr)
+    , m_goldLabel(nullptr)
+    , m_elixirLabel(nullptr)
+    , m_goldIcon(nullptr)
+    , m_elixirIcon(nullptr)
+    , m_displayNode(nullptr)
 {
-    m_gold = new Gold(500);
-    m_elixir = new Elixir(500);  // æ”¹ä¸ºm_elixir
+    m_gold = new Gold(2500);
+    m_elixir = new Elixir(2500);
+
     CCLOG("ResourceManager created");
 }
 
 ResourceManager::~ResourceManager()
 {
+    removeResourceDisplay();
     delete m_gold;
-    delete m_elixir;  // æ”¹ä¸ºm_elixir
+    delete m_elixir;  
     CCLOG("ResourceManager destroyed");
 }
 
@@ -206,7 +217,7 @@ bool ResourceManager::canAffordGold(int goldCost) const
 
 bool ResourceManager::canAffordElixir(int elixirCost) const
 {
-    return m_elixir->canAfford(elixirCost);  // æ”¹ä¸ºm_elixir
+    return m_elixir->canAfford(elixirCost);  
 }
 
 bool ResourceManager::makeGoldPurchase(int goldCost, bool allowZero)
@@ -234,7 +245,7 @@ bool ResourceManager::makeElixirPurchase(int elixirCost, bool allowZero)
         return false;
     }
 
-    return m_elixir->subtract(elixirCost);  // æ”¹ä¸ºm_elixir
+    return m_elixir->subtract(elixirCost);  // ¸ÄÎªm_elixir
 }
 
 void ResourceManager::earnGold(int amount)
@@ -251,8 +262,8 @@ void ResourceManager::earnGold(int amount)
 void ResourceManager::earnElixir(int amount)
 {
     if (amount > 0) {
-        m_elixir->add(amount);  // æ”¹ä¸ºm_elixir
-        CCLOG("Earned %d elixir, total: %d", amount, m_elixir->getAmount());  // æ”¹ä¸ºm_elixir
+        m_elixir->add(amount);  // ¸ÄÎªm_elixir
+        CCLOG("Earned %d elixir, total: %d", amount, m_elixir->getAmount());  // ¸ÄÎªm_elixir
     }
     else if (amount < 0) {
         CCLOG("Warning: Trying to earn negative elixir: %d", amount);
@@ -276,7 +287,7 @@ void ResourceManager::earnResources(int goldAmount, int elixirAmount)
 }
 void ResourceManager::saveResources()
 {
-    // è¿™é‡Œå¯ä»¥ä¿å­˜åˆ°UserDefaultæˆ–æ–‡ä»¶
+    // ÕâÀï¿ÉÒÔ±£´æµ½UserDefault»òÎÄ¼ş
     UserDefault* userDefault = UserDefault::getInstance();
     userDefault->setIntegerForKey("player_gold", m_gold->getAmount());
     userDefault->setIntegerForKey("player_crystal", m_elixir->getAmount());
@@ -287,12 +298,12 @@ void ResourceManager::saveResources()
 void ResourceManager::loadResources()
 {
     UserDefault* userDefault = UserDefault::getInstance();
-    int gold = userDefault->getIntegerForKey("player_gold", 500);
-    int elixir = userDefault->getIntegerForKey("player_elixir", 500);
+    int gold = userDefault->getIntegerForKey("player_gold", 2500);
+    int elixir = userDefault->getIntegerForKey("player_elixir", 2500);
 
     m_gold->reset(gold);
     m_elixir->reset(elixir);
-
+    updateResourceDisplay();
 }
 
 void ResourceManager::resetAllResources(int goldAmount, int elixirAmount)
@@ -300,6 +311,7 @@ void ResourceManager::resetAllResources(int goldAmount, int elixirAmount)
     m_gold->reset(goldAmount);
     m_elixir->reset(elixirAmount);
     CCLOG("Resources reset: Gold=%d, Crystal=%d", goldAmount, elixirAmount);
+    updateResourceDisplay();
 }
 
 
@@ -309,4 +321,118 @@ int ResourceManager::getGoldAmount() const {
 
 int ResourceManager::getElixirAmount() const {
     return m_elixir->getAmount();
+}
+
+void ResourceManager::createResourceDisplay(Node* parent)
+{
+    if (!parent) {
+        CCLOG("Error: Parent node is null");
+        return;
+    }
+
+    // Èç¹ûÒÑ¾­´æÔÚ£¬ÏÈÒÆ³ı
+    removeResourceDisplay();
+
+    // ´´½¨ÏÔÊ¾ÈİÆ÷
+    m_displayNode = Node::create();
+    m_displayNode->setAnchorPoint(Vec2(1.0f, 1.0f)); // ÓÒÉÏ½ÇÃªµã
+
+    // »ñÈ¡ÆÁÄ»³ß´ç
+    auto visibleSize = Director::getInstance()->getVisibleSize();
+    Vec2 origin = Director::getInstance()->getVisibleOrigin();
+
+    // ÉèÖÃÎ»ÖÃ
+    m_displayNode->setPosition(origin.x + visibleSize.width - 10,
+        origin.y + visibleSize.height - 10);
+    parent->addChild(m_displayNode, 100); // ½Ï¸ßµÄZĞòÈ·±£ÏÔÊ¾ÔÚ×îÇ°Ãæ
+
+    // ½ğ±ÒÍ¼±ê
+    m_goldIcon = Sprite::create("others/GoldIcon.png");
+    m_goldIcon->setScale(0.7f);
+    m_goldIcon->setAnchorPoint(Vec2(1.0f, 1.0f)); // ÓÒÉÏ½Ç¶ÔÆë
+    m_goldIcon->setPosition(-10, -10); // ´ÓÈİÆ÷ÓÒÉÏ½Ç¿ªÊ¼
+    m_displayNode->addChild(m_goldIcon);
+
+    // ½ğ±ÒÊıÖµ±êÇ©
+    m_goldLabel = Label::createWithTTF("0/1000", "fonts/arial.ttf", 20);
+    m_goldLabel->setColor(Color3B::YELLOW);
+    m_goldLabel->enableOutline(Color4B::BLACK, 2); // ºÚÉ«Íâ±ß¿ò£¬2ÏñËØ´Ö
+    m_goldLabel->enableShadow(Color4B::BLACK, Size(2, -2), 0); // ¿ÉÑ¡£ºÌí¼ÓÒõÓ°Ğ§¹û
+    m_goldLabel->setAnchorPoint(Vec2(1.0f, 1.0f));
+    m_goldLabel->setPosition(m_goldIcon->getPositionX() - m_goldIcon->getContentSize().width * 0.7f - 5,
+        m_goldIcon->getPositionY() - m_goldIcon->getContentSize().height * 0.35f+10);
+    m_displayNode->addChild(m_goldLabel);
+
+
+    // Ê¥Ë®Í¼±ê
+    m_elixirIcon = Sprite::create("others/ElixirIcon.png");
+    m_elixirIcon->setScale(0.7f);
+    m_elixirIcon->setAnchorPoint(Vec2(1.0f, 1.0f)); // ÓÒÉÏ½Ç¶ÔÆë
+    m_elixirIcon->setPosition(-10, m_goldLabel->getPositionY() - m_goldLabel->getContentSize().height - 15); // ÔÚ½ğ±ÒÏÂÃæ£¬¼ä¾à15ÏñËØ
+    m_displayNode->addChild(m_elixirIcon);
+
+    // Ê¥Ë®ÊıÖµ±êÇ©
+    m_elixirLabel = Label::createWithTTF("0/1000", "fonts/arial.ttf", 20);
+    m_elixirLabel->setColor(Color3B::MAGENTA);
+    m_elixirLabel->enableOutline(Color4B::BLACK, 2); // ºÚÉ«Íâ±ß¿ò£¬2ÏñËØ´Ö
+    m_elixirLabel->enableShadow(Color4B::BLACK, Size(2, -2), 0); // ¿ÉÑ¡£ºÌí¼ÓÒõÓ°Ğ§¹û
+    m_elixirLabel->setAnchorPoint(Vec2(1.0f, 1.0f));
+    m_elixirLabel->setPosition(m_elixirIcon->getPositionX() - m_elixirIcon->getContentSize().width * 0.7f - 5,
+    m_elixirIcon->getPositionY() - m_elixirIcon->getContentSize().height * 0.35f+10);
+    m_displayNode->addChild(m_elixirLabel);
+
+    // ³õÊ¼¸üĞÂÏÔÊ¾
+    updateResourceDisplay();
+
+    CCLOG("Resource display created");
+}
+
+void ResourceManager::updateResourceDisplay()
+{
+    if (m_goldLabel && m_gold) {
+        std::string goldText = StringUtils::format("%d/%d",
+            m_gold->getAmount(),
+            m_gold->getMaxLimit());
+        m_goldLabel->setString(goldText);
+    }
+    if (m_elixirLabel && m_elixir) {
+        std::string elixirText = StringUtils::format("%d/%d",
+            m_elixir->getAmount(),
+            m_elixir->getMaxLimit());
+        m_elixirLabel->setString(elixirText);
+
+        
+    }
+}
+
+
+void ResourceManager::updateGoldMaxLimit(int addAmount)
+{
+    int oldLimit = m_gold->getMaxLimit();
+    int newLimit = oldLimit + addAmount;
+    m_gold->setMaxLimit(newLimit);
+
+    // ¸üĞÂUIÏÔÊ¾
+    updateResourceDisplay();
+}
+void ResourceManager::updateElixirMaxLimit(int addAmount)
+{
+    int oldLimit = m_elixir->getMaxLimit();
+    int newLimit = oldLimit + addAmount;
+    m_elixir->setMaxLimit(newLimit);
+
+    // ¸üĞÂUIÏÔÊ¾
+    updateResourceDisplay();
+}
+
+void ResourceManager::removeResourceDisplay()
+{
+    
+    m_displayNode = nullptr;
+    m_goldLabel = nullptr;
+    m_elixirLabel = nullptr;
+    m_goldIcon = nullptr;
+    m_elixirIcon = nullptr;
+
+    CCLOG("Resource display pointers cleared");
 }

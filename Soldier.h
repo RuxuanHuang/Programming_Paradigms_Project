@@ -9,10 +9,46 @@
 USING_NS_CC;
 
 class BattleScene1;
+enum class BuildingPreference {
+    ANY,           // 攻击任意建筑
+    WALL,          // 偏好城墙
+    DEFENSIVE,     // 偏好防御建筑（炮台、箭塔等）
+    RESOURCE,      // 偏好资源建筑（金矿、圣水库等）
+    TOWN_HALL      // 偏好市政厅
+};
+
 class Soldier : public Sprite {
+private:
+    friend class BattleScene1;  // 允许 BattleScene1 访问私有成员
 public:
+    bool canReachBuilding(Building* building);
+    // 新增：攻击偏好相关
+    void setAttackPreference(BuildingPreference preference) { _attackPreference = preference; }
+    BuildingPreference getAttackPreference() const { return _attackPreference; }
+    void setPreferredBuildingTypes(const std::vector<std::string>& types) { _preferredBuildingTypes = types; }
+    const std::vector<std::string>& getPreferredBuildingTypes() const { return _preferredBuildingTypes; }
+
+    // 新增：寻找目标函数
+    Building* findNearestPreferredBuilding();
+    Building* findNearestBuilding();
+
+    // 新增虚函数（用于子类重写）
+    virtual void onReachTargetCallback() {
+        // 默认实现
+        if (onReachTarget) {
+            onReachTarget(this);
+        }
+    }
+    virtual ~Soldier();
+    virtual void cleanupAnimationResources() {
+        // 默认实现：停止所有动作
+        this->stopAllActions();
+    }
+
+    Building* getAttackTarget() const { return _attackTarget; }
+
     void moveToBuilding(Building* target);
-    Vec2 chooseTargetTile(Building* b);
+    bool Soldier::chooseTargetTile(Building* b, Vec2& outTile);
 
     void setTilePosition(const cocos2d::Vec2& tilePos) {
         _tilePos = tilePos;
@@ -39,6 +75,7 @@ public:
         UNDER_ATTACK, // 正在受击（每秒掉血）
         DEAD          // 已死亡
     };
+
     // 显式显示血条
     void showHPBar() {
         if (_hpBar) _hpBar->setVisible(true);
@@ -97,6 +134,15 @@ public:
     void bindScene(BattleScene1* scene) { _scene = scene; }
 
 protected:
+    // 初始化攻击偏好（子类重写，如果不重写则使用默认值）
+    virtual void initAttackPreference() {
+        _attackPreference = BuildingPreference::ANY;
+        _preferredBuildingTypes.clear();
+    }
+    // 新增：攻击偏好
+    BuildingPreference _attackPreference = BuildingPreference::ANY;
+    std::vector<std::string> _preferredBuildingTypes;
+
     // 翻转精灵以改变朝向
     void setFlippedX(bool flipped);
 
@@ -151,12 +197,14 @@ protected:
     // 死亡回调（可扩展死亡动画/销毁逻辑）
     void onDeath();
 
-    public:
-        void startAttacking(Building* target);
+ protected:
+     // 确保 startAttacking 是虚函数
+     virtual void startAttacking(Building* target);
+     virtual void performAttack(float dt);
+     Building* _attackTarget = nullptr;
+public:
         void stopAttacking();
-        void performAttack(float dt); // 定时触发伤害
-    protected:
-        Building* _attackTarget = nullptr;
+      
 };
 
 #endif // __SOLDIER_H__

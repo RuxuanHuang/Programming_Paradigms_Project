@@ -1,4 +1,5 @@
 #include "ResourceCollector.h"
+#include"resources.h"
 
 bool ResourceCollector::init(const std::string& buildingFile, const std::string turfFile, float buildingScale) {
     if (!Building::init(buildingFile, turfFile, buildingScale)) {
@@ -10,7 +11,7 @@ bool ResourceCollector::init(const std::string& buildingFile, const std::string 
     _currentStored = 0;
     _productionPerHour = 2000;
     _maxCapacity = 1000;
-    _collectThreshold = 0.03f; // 达到10%容量显示图标
+    _collectThreshold = 0.03f; // 达到3%容量显示图标
 
 
     this->setBuildingScale(0.85);
@@ -25,8 +26,14 @@ bool ResourceCollector::init(const std::string& buildingFile, const std::string 
         _upgradeSprites[i] = levelInformation{ hpValues[i - 1], upgradeCosts[i - 1], "" };
 
     }
-    // 启动生产计时器
-    this->schedule(CC_SCHEDULE_SELECTOR(ResourceCollector::updateProduction), 1.0f); // 每秒计算一次
+    if (_isHomeTown==true) {
+        // 启动生产计时器
+        this->schedule(CC_SCHEDULE_SELECTOR(ResourceCollector::updateProduction), 1.0f); // 每秒计算一次
+    }
+    else {
+        _currentStored = _maxCapacity;
+    }
+    
 
     return true;
 }
@@ -46,8 +53,8 @@ void ResourceCollector::setupCollectIcon(const std::string& iconFile) {
     if (_collectIcon) {
         // 将图标放在建筑上方
         float iconY = _buildingSprite->getContentSize().height * _buildingSprite->getScaleY();
-        _collectIcon->setPosition(cocos2d::Vec2(0, iconY + 30));
-        this->addChild(_collectIcon, 20);
+        _collectIcon->setPosition(cocos2d::Vec2(0, iconY + 10));
+        this->addChild(_collectIcon, 10);
         _collectIcon->setVisible(false);
 
         // 给图标加一个简单的浮动动画
@@ -58,6 +65,7 @@ void ResourceCollector::setupCollectIcon(const std::string& iconFile) {
 }
 
 void ResourceCollector::updateIconVisibility() {
+	if (!_isHomeTown) return;
     if (!_collectIcon) return;
 
     // 判断是否超过阈值
@@ -96,11 +104,118 @@ void ResourceCollector::collectResource() {
     }
 }
 
-GoldMine* GoldMine::create(const std::string& buildingFile, bool isHownTown, const std::string turfFile, float buildingScale)
+void ResourceCollector::onBuildingMouseDown(Event* event) {
+    auto e = static_cast<EventMouse*>(event);
+    if (e->getMouseButton() != EventMouse::MouseButton::BUTTON_LEFT)
+        return;
+
+    // 首先检查是否在建筑范围内（基类的方法）
+    if (!isClickingInTurf(this->_parent, e))
+        return;
+
+    // 如果可以收集，记录状态
+    if (isCollectable()) {
+        _mouseStartedOnCollectable = true;
+        _shouldCollect = true;
+        _mouseStartPos = cocos2d::Vec2(e->getCursorX(), e->getCursorY());
+
+        // 阻止事件传播，这样就不会触发建筑选中和拖动
+        e->stopPropagation();
+        return;
+    }
+
+    // 如果不能收集，调用基类方法（正常建筑逻辑）
+    Building::onBuildingMouseDown(event);
+}
+
+void ResourceCollector::onBuildingMouseUp(Event* event) {
+    auto e = static_cast<EventMouse*>(event);
+
+    if (_mouseStartedOnCollectable && _shouldCollect) {
+        // 检查是否是有效的点击（不是拖动）
+        cocos2d::Vec2 mouseEndPos = cocos2d::Vec2(e->getCursorX(), e->getCursorY());
+        float distance = _mouseStartPos.distance(mouseEndPos);
+
+        if (distance <= _clickThreshold) {
+            // 执行收集操作
+            tryCollectResource();
+        }
+
+        // 恢复图标大小
+        if (_collectIcon) {
+            _collectIcon->runAction(cocos2d::Sequence::create(
+                cocos2d::ScaleTo::create(0.1f, 1.0f),
+                nullptr
+            ));
+        }
+
+        // 重置状态
+        _mouseStartedOnCollectable = false;
+        _shouldCollect = false;
+
+        // 阻止事件传播，防止触发建筑选中
+        e->stopPropagation();
+        return;
+    }
+
+    // 如果不是收集操作，调用基类方法
+    Building::onBuildingMouseUp(event);
+
+    // 重置状态
+    _mouseStartedOnCollectable = false;
+    _shouldCollect = false;
+}
+
+void ResourceCollector::onBuildingMouseMove(Event* event) {
+    auto e = static_cast<EventMouse*>(event);
+
+    if (_mouseStartedOnCollectable && _shouldCollect) {
+        // 检查移动距离
+        cocos2d::Vec2 currentMousePos = cocos2d::Vec2(e->getCursorX(), e->getCursorY());
+        float distance = _mouseStartPos.distance(currentMousePos);
+
+        if (distance > _clickThreshold) {
+            // 移动距离超过阈值，取消收集状态
+            _shouldCollect = false;
+
+            // 恢复图标大小
+            if (_collectIcon) {
+                _collectIcon->runAction(cocos2d::Sequence::create(
+                    cocos2d::ScaleTo::create(0.1f, 1.0f),
+                    nullptr
+                ));
+            }
+
+            // 现在可以拖动地图或建筑了
+            // 调用基类的onBuildingMouseMove来处理拖动
+            Building::onBuildingMouseMove(event);
+            return;
+        }
+
+        // 移动距离小，保持收集状态，阻止其他处理
+        e->stopPropagation();
+        return;
+    }
+
+    // 如果不是收集操作，调用基类方法
+    Building::onBuildingMouseMove(event);
+}
+
+void ResourceCollector::tryCollectResource() {
+    if (isCollectable()) {
+        // 播放收集音效
+        cocos2d::AudioEngine::play2d("collect_sound.mp3", false, 0.8f);
+
+        // 执行收集
+        collectResource();
+    }
+}
+
+GoldMine* GoldMine::create(const std::string& buildingFile, bool isHomeTown, const std::string turfFile, float buildingScale)
 {
 
     GoldMine* ret = new (std::nothrow) GoldMine();
-    ret->_isHownTown = isHownTown;
+    ret->_isHomeTown = isHomeTown;
     if (ret && ret->init(buildingFile, turfFile, buildingScale))
     {
 
@@ -120,7 +235,7 @@ bool GoldMine::init(const std::string& buildingFile, const std::string turfFile,
 
     // 2. 设置金矿特有的属性
     _buildingName = "Gold Mine";
-
+    _costType = "Elixir";
 
 
     setupCollectIcon("others/GoldIcon.png");
@@ -134,21 +249,22 @@ bool GoldMine::init(const std::string& buildingFile, const std::string turfFile,
     return true;
 }
 
-void GoldMine::onCollected(float amount)
-{
-    // 这里处理金币逻辑
+void GoldMine::onCollected(float amount) {
     int goldToAdd = static_cast<int>(amount);
     CCLOG("Collected %d Gold from Mine!", goldToAdd);
 
-    // 示例：调用你的全局单例或玩家数据类增加金币
-    // PlayerData::getInstance()->addGold(goldToAdd);
+    // 调用资源管理器
+    auto resourceManager = ResourceManager::getInstance();
+    resourceManager->earnGold(goldToAdd);
 
-    // 可以在这里添加一个飘字动画或者金币飞向UI栏的特效
+    
 }
-ElixirCollector* ElixirCollector::create(const std::string& buildingFile, bool isHownTown, const std::string turfFile, float buildingScale)
+
+
+ElixirCollector* ElixirCollector::create(const std::string& buildingFile, bool isHomeTown, const std::string turfFile, float buildingScale)
 {
     ElixirCollector* ret = new (std::nothrow) ElixirCollector();
-    ret->_isHownTown = isHownTown;
+    ret->_isHomeTown = isHomeTown;
     if (ret && ret->init(buildingFile, turfFile, buildingScale))
     {
 
@@ -177,14 +293,13 @@ bool ElixirCollector::init(const std::string& buildingFile, const std::string tu
     return true;
 }
 
-void ElixirCollector::onCollected(float amount)
-{
+void ElixirCollector::onCollected(float amount) {
+    int elixirToAdd = static_cast<int>(amount);
+    CCLOG("Collected %d Elixir from Collector!", elixirToAdd);
 
-    int goldToAdd = static_cast<int>(amount);
+    // 调用资源管理器
+    auto resourceManager = ResourceManager::getInstance();
+    resourceManager->earnElixir(elixirToAdd);
 
-
-    // 示例：调用你的全局单例或玩家数据类增加金币
-    // PlayerData::getInstance()->addGold(goldToAdd);
-
-    // 可以在这里添加一个飘字动画或者金币飞向UI栏的特效
+    
 }

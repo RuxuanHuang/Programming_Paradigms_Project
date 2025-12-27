@@ -4,6 +4,7 @@
 
 class Mage : public Soldier {
 public:
+    virtual ~Mage();
     static Mage* create(Vec2 pos, float scale);
     virtual bool init(Vec2 pos, float scale) override;
     virtual void moveToTarget(Vec2 targetPos, float duration) override;
@@ -11,6 +12,9 @@ public:
     virtual void playWalkAnimation() override;
     virtual void stopWalkAnimation() override;
 protected:
+    // 新增：初始化攻击偏好
+    virtual void initAttackPreference() override;
+
     // ========== 新增：实现属性纯虚函数 ==========
     virtual void initBaseAttributes() override;
     virtual void updateAttributesByLevel() override;

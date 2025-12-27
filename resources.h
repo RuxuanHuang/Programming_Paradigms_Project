@@ -5,105 +5,120 @@
 
 USING_NS_CC;
 
-// èµ„æºç±»å‹æšä¸¾
+// ×ÊÔ´ÀàĞÍÃ¶¾Ù
 enum class ResourceType
 {
-    GOLD,    // é‡‘å¸
-    ELIXIR  // åœ£æ°´
+    GOLD ,    // ½ğ±Ò
+    ELIXIR  // Ê¥Ë®
 };
 
-// èµ„æºåŸºç±»
+// ×ÊÔ´»ùÀà
 class Resource
 {
 public:
-    Resource(const std::string& name, int initialAmount = 1000);
+    Resource(const std::string& name, int initialAmount=2500);
     virtual ~Resource() {}
 
-    // é€šç”¨æ¥å£
-    virtual bool add(int amount);             // å¢åŠ èµ„æº
-    virtual bool subtract(int amount);        // å‡å°‘èµ„æº
-    virtual bool canAfford(int cost) const;    // æ£€æŸ¥æ˜¯å¦è¶³å¤Ÿæ”¯ä»˜
+    // Í¨ÓÃ½Ó¿Ú
+    virtual bool add(int amount);             // Ôö¼Ó×ÊÔ´
+    virtual bool subtract(int amount);        // ¼õÉÙ×ÊÔ´
+    virtual bool canAfford(int cost) const;    // ¼ì²éÊÇ·ñ×ã¹»Ö§¸¶
     virtual int getAmount() const { return m_amount; }
     virtual std::string getName() const { return m_name; }
 
-    // è·å–/è®¾ç½®æœ€å¤§é™é¢
+    // »ñÈ¡/ÉèÖÃ×î´óÏŞ¶î
     virtual int getMaxLimit() const { return m_maxLimit; }
     virtual void setMaxLimit(int limit) { m_maxLimit = limit; }
 
-    // é‡ç½®èµ„æº
+
+    // ÖØÖÃ×ÊÔ´
     virtual void reset(int amount = 0) { m_amount = amount; }
 
-    // æ£€æŸ¥æ˜¯å¦è¾¾åˆ°ä¸Šé™
+    // ¼ì²éÊÇ·ñ´ïµ½ÉÏÏŞ
     virtual bool isFull() const { return m_amount >= m_maxLimit; }
 
 protected:
-    std::string m_name;      // èµ„æºåç§°
-    int m_amount;           // å½“å‰æ•°é‡
-    int m_maxLimit;         // æœ€å¤§é™åˆ¶ï¼ˆ0è¡¨ç¤ºæ— é™åˆ¶ï¼‰
+    std::string m_name;      // ×ÊÔ´Ãû³Æ
+    int m_amount;           // µ±Ç°ÊıÁ¿
+    int m_maxLimit;         // ×î´óÏŞÖÆ
 };
 
-// é‡‘å¸å­ç±»
+// ½ğ±Ò×ÓÀà
 class Gold : public Resource
 {
 public:
-    Gold(int initialAmount = 500);
+    Gold(int initialAmount = 2500);
     virtual ~Gold() {}
 
-    // é‡‘å¸ç‰¹æœ‰çš„æ–¹æ³•
-    void earnFromBattle(int reward);           // æˆ˜æ–—è·å¾—
-    bool spendForItem(int cost);               // è´­ä¹°ç‰©å“
-    bool spendForUpgrade(int cost);            // å‡çº§èŠ±è´¹
+    // ½ğ±ÒÌØÓĞµÄ·½·¨
+    void earnFromBattle(int reward);           // Õ½¶·»ñµÃ
+    bool spendForItem(int cost);               // ¹ºÂòÎïÆ·
+    bool spendForUpgrade(int cost);            // Éı¼¶»¨·Ñ
 };
 
-// åœ£æ°´å­ç±»
+// Ê¥Ë®×ÓÀà
 class Elixir : public Resource
 {
 public:
-    Elixir(int initialAmount = 500);
+    Elixir(int initialAmount = 2500);
     virtual ~Elixir() {}
 
-    // æ°´æ™¶ç‰¹æœ‰çš„æ–¹æ³•
-    void earnFromQuest(int reward);            // ä»»åŠ¡è·å¾—
-    bool spendForPremiumItem(int cost);        // è´­ä¹°é«˜çº§ç‰©å“
-    bool spendForInstant(int cost);            // ç«‹å³å®ŒæˆèŠ±è´¹
+    // Ë®¾§ÌØÓĞµÄ·½·¨
+    void earnFromQuest(int reward);            // ÈÎÎñ»ñµÃ
+    bool spendForPremiumItem(int cost);        // ¹ºÂò¸ß¼¶ÎïÆ·
+    bool spendForInstant(int cost);            // Á¢¼´Íê³É»¨·Ñ
 };
 
-// èµ„æºç®¡ç†å™¨ï¼ˆå•ä¾‹æ¨¡å¼ï¼‰
+// ×ÊÔ´¹ÜÀíÆ÷£¨µ¥ÀıÄ£Ê½£©
 class ResourceManager
 {
 public:
     static ResourceManager* getInstance();
     static void destroyInstance();
 
-    // è·å–èµ„æºå¯¹è±¡
+    // »ñÈ¡×ÊÔ´¶ÔÏó
     Gold* getGold() { return m_gold; }
     Elixir* getElixir() { return m_elixir; }
     Resource* getResource(ResourceType type);
 
-    // å•ä¸ªèµ„æºè´­ä¹°æ£€æŸ¥
+    // µ¥¸ö×ÊÔ´¹ºÂò¼ì²é
     bool canAffordGold(int goldCost) const;
     bool canAffordElixir(int elixirCost) const;
 
-    // å•ä¸ªèµ„æºè´­ä¹°
+    // µ¥¸ö×ÊÔ´¹ºÂò
     bool makeGoldPurchase(int goldCost, bool allowZero = true);
     bool makeElixirPurchase(int elixirCost, bool allowZero = true);
 
-    // è·å¾—èµ„æºï¼ˆä¸‰ç§æ–¹å¼ï¼‰
-    void earnResources(int goldAmount, int elixirAmount);  // åŒæ—¶è·å¾—ä¸¤ç§
-    void earnGold(int amount);                             // åªè·å¾—é‡‘å¸
-    void earnElixir(int amount);                           // åªè·å¾—åœ£æ°´
+    // »ñµÃ×ÊÔ´
+    void earnResources(int goldAmount, int elixirAmount);  // Í¬Ê±»ñµÃÁ½ÖÖ
+    void earnGold(int amount);                             // Ö»»ñµÃ½ğ±Ò
+    void earnElixir(int amount);                           // Ö»»ñµÃÊ¥Ë®
 
-    // ä¿å­˜/åŠ è½½
+    // ±£´æ/¼ÓÔØ
     void saveResources();
     void loadResources();
 
-    // é‡ç½®
-    void resetAllResources(int goldAmount = 100, int elixirlAmount = 50);
+    // ÖØÖÃ
+    void resetAllResources(int goldAmount = 2500, int elixirlAmount = 2500);
 
-    // è·å–å­—ç¬¦ä¸²è¡¨ç¤º
+    // »ñÈ¡×Ö·û´®±íÊ¾
     int getGoldAmount() const;
     int getElixirAmount() const;
 
+    // ´´½¨×ÊÔ´ÏÔÊ¾
+    void createResourceDisplay(Node* parent);
+
+    // Ë¢ĞÂ×ÊÔ´ÏÔÊ¾£¨µ±×ÊÔ´±ä»¯Ê±µ÷ÓÃ£©
+    void updateResourceDisplay();
+
+    // ÒÆ³ı×ÊÔ´ÏÔÊ¾
+    void removeResourceDisplay();
+
+    //¸üĞÂ×î´ó´æ´¢Á¿
+    void updateGoldMaxLimit(int addAmount);
+    void updateElixirMaxLimit(int addAmount);
+
+    Node* getDisplayNode() { return m_displayNode; }
 private:
     ResourceManager();
     ~ResourceManager();
@@ -112,7 +127,12 @@ private:
     Gold* m_gold;
     Elixir* m_elixir;
 
-
+    Label* m_goldLabel;
+    Label* m_elixirLabel;
+    Sprite* m_goldIcon;
+    Sprite* m_elixirIcon;
+    Node* m_displayNode;
+    
 };
 
 #endif // __RESOURCE_SYSTEM_H__

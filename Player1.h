@@ -5,6 +5,7 @@
 
 class Player1 : public Soldier {
 public:
+    virtual ~Player1();
     static Player1* create(Vec2 pos, float scale);
 
     virtual bool init(Vec2 pos, float scale) override;
@@ -14,6 +15,7 @@ public:
     virtual void stopWalkAnimation() override;
 
 protected:
+
     // ========== 新增：实现属性纯虚函数 ==========
     virtual void initBaseAttributes() override;
     virtual void updateAttributesByLevel() override;

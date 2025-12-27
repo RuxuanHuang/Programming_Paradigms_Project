@@ -1,478 +1,309 @@
-#include"Store.h"
+#include "Store.h"
+#include"resources.h"
 
-
-bool Store::init()
-{
-    if (!Layer::init())
-    {
+bool Store::init() {
+    if (!Scene::init()) {
         return false;
     }
 
+    // 获取可见区域大小
     auto visibleSize = Director::getInstance()->getVisibleSize();
-
-    // 创建背景图片
     Vec2 origin = Director::getInstance()->getVisibleOrigin();
+
+    // 创建背景
     auto background = Sprite::create("shop.png");
-    if (background != nullptr)
-    {
+    if (background != nullptr) {
         background->setScaleX(visibleSize.width / background->getContentSize().width);
         background->setScaleY(visibleSize.height / background->getContentSize().height);
-        background->setPosition(Vec2(visibleSize.width / 2 + origin.x, visibleSize.height / 2 + origin.y));
+        background->setPosition(Vec2(visibleSize.width / 2 + origin.x,
+            visibleSize.height / 2 + origin.y));
         this->addChild(background, -1);
     }
-    else
-    {
-        auto fallbackBackground = LayerColor::create(Color4B(0, 150, 255, 255),
+    else {
+        auto fallbackBackground = LayerColor::create(Color4B(50, 50, 80, 255),
             visibleSize.width, visibleSize.height);
         this->addChild(fallbackBackground, -1);
     }
 
-    // 在顶部显示玩家资源
-    displayPlayerResources();
+    // 初始化卡片数据
+    initCardData();
+    createUI();
 
-    // 添加返回按钮
-    auto backButton = Sprite::create("back_button.png");
-    if (backButton == nullptr) {
-        backButton = Sprite::create();
-        backButton->setTextureRect(Rect(0, 0, 60, 60));
-        backButton->setColor(Color3B::RED);
+    createResourceDisplay();
+    return true;
+}
 
-        auto drawNode = DrawNode::create();
-        drawNode->drawLine(Vec2(10, 10), Vec2(50, 50), Color4F::WHITE);
-        drawNode->drawLine(Vec2(50, 10), Vec2(10, 50), Color4F::WHITE);
-        backButton->addChild(drawNode);
+void Store::initCardData() {
+    // 初始化8种建筑卡片数据
+
+    cardDataList = {
+        {"Cannon", "StoreCards/CannonCard.png", 250,"Gold" ,false},
+        {"Archer Tower", "StoreCards/ArcherTowerCard.png", 1000,"Gold" ,false},
+        {"Wall", "StoreCards/WallCard.png", 0, "Gold",false},
+		{"Army Camp", "StoreCards/ArmyCampCard.png", 200,"Elixir", false},
+		{"Gold Mine", "StoreCards/GoldMineCard.png", 150,"Elixir", false},
+		{"Elixir Collector", "StoreCards/ElixirCollectorCard.png", 150,"Gold", false},
+		{"Gold Storage", "StoreCards/GoldStorageCard.png", 300, "Elixir",false},
+		{"Elixir Storage", "StoreCards/ElixirStorageCard.png", 300,"Elixir", false}
+    };
+}
+
+void Store::createResourceDisplay() {
+    auto visibleSize = Director::getInstance()->getVisibleSize();
+    Vec2 origin = Director::getInstance()->getVisibleOrigin();
+
+    // 中间偏左下的位置（屏幕左下角往上190，往右300的位置）
+    Vec2 basePosition = Vec2(origin.x + 300, origin.y + 190);
+
+    // 获取资源管理器实例
+    auto resourceManager = ResourceManager::getInstance();
+
+
+    goldLabel = Label::createWithTTF("0", "fonts/arial.ttf", 28);
+    goldLabel->setPosition(Vec2(basePosition.x + 30, basePosition.y));
+    goldLabel->setTextColor(Color4B::YELLOW);
+    this->addChild(goldLabel);
+
+
+    elixirLabel = Label::createWithTTF("0", "fonts/arial.ttf", 28);
+    elixirLabel->setPosition(Vec2(basePosition.x + 300, basePosition.y ));
+    elixirLabel->setTextColor(Color4B::MAGENTA);
+    this->addChild(elixirLabel);
+
+    // 初始更新资源显示
+    updateResourceDisplay();
+
+    
+}
+
+
+void Store::updateResourceDisplay() {
+    auto resourceManager = ResourceManager::getInstance();
+
+    // 更新金币显示
+    int goldAmount = resourceManager->getGoldAmount();
+    goldLabel->setString(std::to_string(goldAmount));
+
+    // 更新圣水显示
+    int elixirAmount = resourceManager->getElixirAmount();
+    elixirLabel->setString(std::to_string(elixirAmount));
+}
+
+
+
+void Store::createUI() {
+    auto visibleSize = Director::getInstance()->getVisibleSize();
+    Vec2 origin = Director::getInstance()->getVisibleOrigin();
+
+
+    // 创建返回按钮
+    auto backButton = ui::Button::create("back.png", "", "");
+
+    backButton->setPosition(Vec2(visibleSize.width - 60, visibleSize.height - 60));
+    backButton->setScale(0.6f);
+    backButton->addTouchEventListener([&](Ref* sender, ui::Widget::TouchEventType type) {
+        if (type == ui::Widget::TouchEventType::ENDED) {
+            AudioEngine::play2d("click.mp3", false, 0.8f);
+            Director::getInstance()->popScene();
+        }
+        });
+    this->addChild(backButton, 1);
+
+    // 创建卡片网格布局
+    int cardsPerRow = 4;
+    float cardWidth = 280;
+    float cardHeight = 240;
+    float startX = (visibleSize.width - cardsPerRow * cardWidth) / 2 + cardWidth / 2;
+    float startY = visibleSize.height - 400;
+
+    for (int i = 0; i < cardDataList.size(); i++) {
+        int row = i / cardsPerRow;
+        int col = i % cardsPerRow;
+
+        Vec2 position = Vec2(
+            startX + col * cardWidth,
+            startY - row * (cardHeight + 20)
+        );
+
+        createCard(cardDataList[i], position);
     }
+}
 
-    backButton->setPosition(Vec2(40, visibleSize.height - 100));
-    backButton->setScale(0.8f);
 
-    // 返回按钮触摸事件
-    auto backListener = EventListenerTouchOneByOne::create();
-    backListener->setSwallowTouches(true);
-    backListener->onTouchBegan = [backButton](Touch* touch, Event* event) {
-        if (backButton->getBoundingBox().containsPoint(touch->getLocation())) {
-            backButton->runAction(ScaleTo::create(0.1, 0.9));
+
+void Store::createCard(const StoreCardData& data, Vec2 position) {
+    // 创建卡片图标
+    auto cardIcon = Sprite::create(data.iconPath);
+    cardIcon->setPosition(Vec2(position.x, position.y + 50));
+    cardIcon->setScale(0.48f);
+
+    // 添加触摸事件监听器
+    auto touchListener = EventListenerTouchOneByOne::create();
+    touchListener->setSwallowTouches(true);
+    touchListener->onTouchBegan = [cardIcon, this, data](Touch* touch, Event* event) -> bool {
+        if (cardIcon->getBoundingBox().containsPoint(touch->getLocation())) {
+            // 触摸开始时缩小一点，提供反馈
+            cardIcon->runAction(ScaleTo::create(0.1f, 0.45f));
             return true;
         }
         return false;
         };
 
-    backListener->onTouchEnded = [this, backButton](Touch* touch, Event* event) {
-        backButton->runAction(ScaleTo::create(0.1, 0.8));
-        if (backButton->getBoundingBox().containsPoint(touch->getLocation())) {
-            // 播放点击音效
-            AudioEngine::play2d("click.mp3", false, 0.8f);
+    touchListener->onTouchEnded = [cardIcon, this, data](Touch* touch, Event* event) {
+        // 恢复大小
+        cardIcon->runAction(ScaleTo::create(0.1f, 0.48f));
 
-            this->setVisible(false);
+        // 检查是否在卡片区域内释放
+        if (cardIcon->getBoundingBox().containsPoint(touch->getLocation())) {
+            AudioEngine::play2d("click.mp3", false, 0.8f);
+            this->onCardClicked(data);
         }
         };
 
-    _eventDispatcher->addEventListenerWithSceneGraphPriority(backListener, backButton);
-    this->addChild(backButton, 10);
+    _eventDispatcher->addEventListenerWithSceneGraphPriority(touchListener, cardIcon);
 
-    // 添加说明文字
-    auto instructionLabel = Label::createWithTTF("点击图片购买并放置到场景中", "fonts/arial.ttf", 24);
-    instructionLabel->setPosition(Vec2(visibleSize.width / 2, visibleSize.height - 150));
-    instructionLabel->setColor(Color3B::YELLOW);
-    this->addChild(instructionLabel, 1);
-
-    // 加载所有可用图片
-    loadAllImages();
-
-    // 创建图片选择区域
-    createImageSelectionArea();
-
+    this->addChild(cardIcon);
+    cardSprites.pushBack(cardIcon);
 }
 
-void Store::onEnter()
+bool Store::checkBuildingNum(const StoreCardData& data)
 {
-    Layer::onEnter();
+    BuildingManager* buildingManager = BuildingManager::getInstance();
+    // 获取建筑类型
+    std::string buildingType = buildingManager->cardNameToType(data.cardName);
 
-    ;
+    // 获取大本营等级
+    int townHallLevel = buildingManager->getTownhallLevel();
 
-   
-}
-
-void Store::onExit()
-{
-    
-
-    // 清理所有子节点
-    this->removeAllChildrenWithCleanup(true);
-
-    Layer::onExit();
-}
-
-void Store::displayPlayerResources()
-{
-    auto visibleSize = Director::getInstance()->getVisibleSize();
-
-    // 创建资源显示背景
-    auto resourceBg = LayerColor::create(Color4B(0, 0, 0, 150), visibleSize.width, 60);
-    resourceBg->setPosition(Vec2(0, visibleSize.height - 60));
-    this->addChild(resourceBg, 5);
-
-    // 金币图标
-    auto goldIcon = Sprite::create("others/GoldIcon.png");
-    if (goldIcon == nullptr) {
-        goldIcon = Sprite::create();
-        goldIcon->setTextureRect(Rect(0, 0, 50, 50));
-        goldIcon->setColor(Color3B::YELLOW);
-    }
-    goldIcon->setPosition(Vec2(100, visibleSize.height - 30));
-    goldIcon->setScale(1.0f);
-    this->addChild(goldIcon, 6);
-
-    // 金币数量
-    auto goldLabel = Label::createWithTTF(StringUtils::format("%d", g_playerGold),
-        "fonts/arial.ttf", 28);
-    goldLabel->setPosition(Vec2(160, visibleSize.height - 30));
-    goldLabel->setColor(Color3B::YELLOW);
-    goldLabel->setTag(GOLD_LABEL_TAG);
-    this->addChild(goldLabel, 6);
-
-    // 水晶图标
-    auto ElixirIcon = Sprite::create("others/ElixirIcon.png");
-    if (ElixirIcon == nullptr) {
-        ElixirIcon = Sprite::create();
-        ElixirIcon->setTextureRect(Rect(0, 0, 50, 50));
-        ElixirIcon->setColor(Color3B::BLUE);
-    }
-    ElixirIcon->setPosition(Vec2(280, visibleSize.height - 30));
-    ElixirIcon->setScale(1.0f);
-    this->addChild(ElixirIcon, 6);
-
-    // 水晶数量
-    auto ElixirLabel = Label::createWithTTF(StringUtils::format("%d", g_playerCrystal),
-        "fonts/arial.ttf", 28);
-    ElixirLabel->setPosition(Vec2(340, visibleSize.height - 30));
-    ElixirLabel->setColor(Color3B::BLUE);
-    ElixirLabel->setTag(CRYSTAL_LABEL_TAG);
-    this->addChild(ElixirLabel, 6);
-}
-
-void Store::loadAllImages()
-{
-    // 加载1(1)到1(5)的图片
-    for (int i = 1; i <= 8; i++) {
-        std::string filename = StringUtils::format("others/1 (%d).png", i);
-        auto sprite = Sprite::create(filename);
-        if (sprite != nullptr) {
-            allImages.pushBack(sprite);
-        }
-        else {
-            // 如果图片加载失败，创建一个占位符
-            auto placeholder = Sprite::create();
-            placeholder->setTextureRect(Rect(0, 0, 100, 100));
-            placeholder->setColor(Color3B(100 + i * 30, 100, 100 + i * 20));
-
-            allImages.pushBack(placeholder);
-        }
+    // 检查是否解锁
+    if (!buildingManager->isBuildingUnlocked(buildingType, townHallLevel)) {
+        showPurchaseMessage("Update Town Hall to unlock the building!", Color4B::RED);
+        return false;
     }
 
-    // 记录每个精灵对应的文件名
-    for (int i = 0; i < allImages.size(); i++) {
-        allImages.at(i)->setName(StringUtils::format("image_%d", i + 1));
+    // 检查数量限制
+    int currentCount = buildingManager->getCurrentCountForType(buildingType);
+    if (!buildingManager->canBuildMore(buildingType, townHallLevel, currentCount)) {
+        showPurchaseMessage("Update Town Hall to build more!", Color4B::RED);
+        return false;
     }
+    return true;
 }
 
-void Store::createImageSelectionArea()
-{
-    auto visibleSize = Director::getInstance()->getVisibleSize();
 
-    // 创建图片展示区域
-    createImageGallery();
-
-    // 添加触摸事件监听器
-    auto listener = EventListenerTouchOneByOne::create();
-    listener->setSwallowTouches(true);
-    listener->onTouchBegan = CC_CALLBACK_2(Store::onTouchBegan, this);
-    listener->onTouchEnded = CC_CALLBACK_2(Store::onTouchEnded, this);
-    _eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);
-}
-
-void Store::createImageGallery()
-{
-    auto visibleSize = Director::getInstance()->getVisibleSize();
-
-    // 添加当前页码显示
-    currentPageLabel = Label::createWithTTF("1/3", "fonts/arial.ttf", 20);
-    currentPageLabel->setPosition(Vec2(visibleSize.width / 2, 380));
-    currentPageLabel->setColor(Color3B::WHITE);
-    this->addChild(currentPageLabel, 6);
-
-    // 创建向左翻页箭头
-    auto leftArrow = Sprite::create("arrow_left.png");
-    if (leftArrow == nullptr) {
-        leftArrow = Sprite::create();
-        leftArrow->setTextureRect(Rect(0, 0, 40, 40));
-        leftArrow->setColor(Color3B::GRAY);
-
-        // 绘制三角形箭头
-        auto triangle = DrawNode::create();
-        Vec2 vertices[] = { Vec2(30, 10), Vec2(10, 20), Vec2(30, 30) };
-        triangle->drawPolygon(vertices, 3, Color4F(1, 1, 1, 1), 0, Color4F(1, 1, 1, 1));
-        leftArrow->addChild(triangle);
-    }
-    leftArrow->setPosition(Vec2(30, 250));
-    leftArrow->setTag(LEFT_ARROW_TAG);
-    this->addChild(leftArrow, 6);
-
-    // 创建向右翻页箭头
-    auto rightArrow = Sprite::create("arrow_right.png");
-    if (rightArrow == nullptr) {
-        rightArrow = Sprite::create();
-        rightArrow->setTextureRect(Rect(0, 0, 40, 40));
-        rightArrow->setColor(Color3B::GRAY);
-
-        // 绘制三角形箭头
-        auto triangle = DrawNode::create();
-        Vec2 vertices[] = { Vec2(10, 10), Vec2(30, 20), Vec2(10, 30) };
-        triangle->drawPolygon(vertices, 3, Color4F(1, 1, 1, 1), 0, Color4F(1, 1, 1, 1));
-        rightArrow->addChild(triangle);
-    }
-    rightArrow->setPosition(Vec2(visibleSize.width - 30, 250));
-    rightArrow->setTag(RIGHT_ARROW_TAG);
-    this->addChild(rightArrow, 6);
-
-    // 初始显示第一页
-    currentPage = 0;
-    updateGalleryDisplay();
-}
-
-bool Store::onTouchBegan(Touch* touch, Event* event)
-{
-    auto touchPos = touch->getLocation();
-
-    // 检查是否点击了翻页箭头
-    auto leftArrow = this->getChildByTag(LEFT_ARROW_TAG);
-    auto rightArrow = this->getChildByTag(RIGHT_ARROW_TAG);
-
-    if (leftArrow && leftArrow->getBoundingBox().containsPoint(touchPos)) {
-        leftArrow->setColor(Color3B(200, 200, 200));
+bool Store::checkCost(const StoreCardData& data) {
+    auto resourceManager = ResourceManager::getInstance();
+    // 根据货币类型进行购买判断
+    if (data.price == 0) {
+        // 免费物品
         return true;
+        CCLOG("Acquired free item: %s", data.cardName.c_str());
+        showPurchaseMessage("Item Acquired!", Color4B::GREEN);
     }
-
-    if (rightArrow && rightArrow->getBoundingBox().containsPoint(touchPos)) {
-        rightArrow->setColor(Color3B(200, 200, 200));
-        return true;
-    }
-
-    // 检查是否点击了图片
-    for (int i = 0; i < visibleImages.size(); i++) {
-        auto sprite = visibleImages.at(i);
-        if (sprite && sprite->getBoundingBox().containsPoint(touchPos)) {
-            touchedImageIndex = i;
-            sprite->runAction(ScaleTo::create(0.1, sprite->getScale() * 1.1));
+    else if (data.costType == "Gold") {
+        // 检查金币是否足够
+        if (resourceManager->canAffordGold(data.price)) {
+            // 购买
+            resourceManager->makeGoldPurchase(data.price);
+            CCLOG("Purchased %s for %d gold", data.cardName.c_str(), data.price);
+            // 显示购买成功提示
+            showPurchaseMessage("Successful Purchase!", Color4B::GREEN);
             return true;
         }
-    }
-
-    return false;
-}
-
-void Store::updateResourceDisplay()
-{
-    auto visibleSize = Director::getInstance()->getVisibleSize();
-
-    // 更新金币显示
-    auto goldLabel = (Label*)this->getChildByTag(GOLD_LABEL_TAG);
-    if (goldLabel) {
-        goldLabel->setString(StringUtils::format("%d", g_playerGold));
-    }
-
-    // 更新水晶显示
-    auto crystalLabel = (Label*)this->getChildByTag(CRYSTAL_LABEL_TAG);
-    if (crystalLabel) {
-        crystalLabel->setString(StringUtils::format("%d", g_playerCrystal));
-    }
-}
-
-void Store::updateGalleryDisplay()
-{
-    auto visibleSize = Director::getInstance()->getVisibleSize();
-
-    // 移除当前显示的所有图片
-    for (auto& sprite : visibleImages) {
-        if (sprite) {
-            sprite->removeFromParent();
+        else {
+            // 金币不足
+            showPurchaseMessage("Not Enough Gold!", Color4B::RED);
+            CCLOG("Not enough gold to purchase %s. Need: %d, Have: %d",
+                data.cardName.c_str(), data.price, resourceManager->getGoldAmount());
+            return false; // 资源不足，不继续执行
         }
     }
-    visibleImages.clear();
-
-    // 计算总页数
-    int totalPages = (int)ceil(allImages.size() / 3.0f);
-    currentPageLabel->setString(StringUtils::format("%d/%d", currentPage + 1, totalPages));
-
-    // 计算当前页起始索引
-    int startIndex = currentPage * 3;
-
-    // 显示当前页的图片（最多3张）
-    // 计算中间60%的宽度
-    float middleWidth = visibleSize.width * 0.6f;
-    // 计算起始X坐标（从左边20%开始）
-    float startX = visibleSize.width * 0.2f;
-    // 计算每个图片的间距
-    float itemSpacing = middleWidth / 3;
-
-    for (int i = 0; i < 3; i++) {
-        int imageIndex = startIndex + i;
-        if (imageIndex < allImages.size()) {
-            // 获取原始精灵
-            auto originalSprite = allImages.at(imageIndex);
-
-            // 创建副本
-            auto spriteCopy = Sprite::create();
-            spriteCopy->setTexture(originalSprite->getTexture());
-            spriteCopy->setTextureRect(originalSprite->getTextureRect());
-            spriteCopy->setColor(originalSprite->getColor());
-            spriteCopy->setContentSize(originalSprite->getContentSize());
-            spriteCopy->setName(originalSprite->getName());
-
-            // 设置位置
-            float posX = startX + itemSpacing * (i + 0.5f);
-            float posY = visibleSize.height * 0.6f;
-
-            // 设置合适的大小
-            float maxSize = 200.0f;
-            float scale = 1.5f;
-            auto contentSize = spriteCopy->getContentSize();
-            if (contentSize.width > maxSize || contentSize.height > maxSize) {
-                scale = maxSize / MAX(contentSize.width, contentSize.height) * 1.2f;
-            }
-            spriteCopy->setScale(scale);
-
-            spriteCopy->setPosition(Vec2(posX, posY));
-            this->addChild(spriteCopy, 6);
-            visibleImages.pushBack(spriteCopy);
-
-            // 添加图片价格显示
-            int goldCost = g_imageGoldPrices[imageIndex];
-            int crystalCost = g_imageCrystalPrices[imageIndex];
-
-            // 金币价格
-            auto goldCostIcon = Sprite::create("Gold.png");
-            if (goldCostIcon == nullptr) {
-                goldCostIcon = Sprite::create();
-                goldCostIcon->setTextureRect(Rect(0, 0, 25, 25));
-                goldCostIcon->setColor(Color3B::YELLOW);
-            }
-            goldCostIcon->setScale(0.8f);
-            goldCostIcon->setPosition(Vec2(-10, -contentSize.height * scale / 2));
-            spriteCopy->addChild(goldCostIcon);
-
-            auto goldCostLabel = Label::createWithTTF(StringUtils::format("%d", goldCost),
-                "fonts/arial.ttf", 25);
-            goldCostLabel->setPosition(Vec2(25, -contentSize.height * scale / 2));
-            goldCostLabel->setColor(Color3B::YELLOW);
-            spriteCopy->addChild(goldCostLabel);
-
-            // 水晶价格
-            auto crystalCostIcon = Sprite::create("others/Crystal.png");
-            if (crystalCostIcon == nullptr) {
-                crystalCostIcon = Sprite::create();
-                crystalCostIcon->setTextureRect(Rect(0, 0, 25, 25));
-                crystalCostIcon->setColor(Color3B::BLUE);
-            }
-            crystalCostIcon->setScale(0.8f);
-            crystalCostIcon->setPosition(Vec2(75, -contentSize.height * scale / 2));
-            spriteCopy->addChild(crystalCostIcon);
-
-            auto crystalCostLabel = Label::createWithTTF(StringUtils::format("%d", crystalCost),
-                "fonts/arial.ttf", 18);
-            crystalCostLabel->setPosition(Vec2(105, -contentSize.height * scale / 2));
-            crystalCostLabel->setColor(Color3B::BLUE);
-            spriteCopy->addChild(crystalCostLabel);
-
+    else if (data.costType == "Elixir") {
+        // 检查圣水是否足够
+        if (resourceManager->canAffordElixir(data.price)) {
+            // 尝试购买
+            resourceManager->makeElixirPurchase(data.price);
+            CCLOG("Purchased %s for %d elixir", data.cardName.c_str(), data.price);
+            showPurchaseMessage("Successful Purchase!", Color4B::GREEN);
+            return true;
         }
+        else {
+            // 圣水不足
+            showPurchaseMessage("Not Enough Elixir!", Color4B::RED);
+            CCLOG("Not enough elixir to purchase %s. Need: %d, Have: %d",
+                data.cardName.c_str(), data.price, resourceManager->getElixirAmount());
+            return false; // 资源不足，不继续执行
+        }
+    }
+    else {
+        return false; // 未知货币类型，不处理
     }
 }
 
-void Store::onTouchEnded(Touch* touch, Event* event)
+bool Store::canPurchase(const StoreCardData& data)
 {
-    auto visibleSize = Director::getInstance()->getVisibleSize();
-    auto touchPos = touch->getLocation();
-
-    auto leftArrow = this->getChildByTag(LEFT_ARROW_TAG);
-    auto rightArrow = this->getChildByTag(RIGHT_ARROW_TAG);
-
-    if (leftArrow) leftArrow->setColor(Color3B::GRAY);
-    if (rightArrow) rightArrow->setColor(Color3B::GRAY);
-
-    for (auto& sprite : visibleImages) {
-        sprite->stopAllActions();
-        sprite->runAction(ScaleTo::create(0.1, sprite->getScale()));
+    if (checkBuildingNum(data) && checkCost(data)) {
+        return true;
     }
+    else {
+        return false;
+    }
+}
 
-    // 检查是否点击了左箭头
-    if (leftArrow && leftArrow->getBoundingBox().containsPoint(touchPos)) {
-        if (currentPage > 0) {
-            currentPage--;
-            updateGalleryDisplay();
-            // 播放点击音效
-            AudioEngine::play2d("click.mp3", false, 0.6f);
+
+void Store::onCardClicked(const StoreCardData& data) {
+    // 播放购买音效
+    AudioEngine::play2d("click.mp3", false, 0.8f);
+
+    // 获取资源管理器
+    auto resourceManager = ResourceManager::getInstance();
+    bool purchaseSuccess = canPurchase(data);
+    // 如果购买成功
+    if (purchaseSuccess) {
+        // 更新资源显示
+        updateResourceDisplay();
+
+        // 如果有设置回调，调用回调
+        if (_cardSelectCallback) {
+            _cardSelectCallback(data.cardName);
         }
+
+        // 等待一下让玩家看到购买成功消息，然后返回
+        this->runAction(Sequence::create(
+            DelayTime::create(0.8f),
+            CallFunc::create([this]() {
+                Director::getInstance()->popScene();
+                }),
+            nullptr
+        ));
+    }
+    else {
+        // 购买失败，不返回场景，让玩家继续选择
         return;
     }
-
-    // 检查是否点击了右箭头
-    if (rightArrow && rightArrow->getBoundingBox().containsPoint(touchPos)) {
-        int totalPages = (int)ceil(allImages.size() / 3.0f);
-        if (currentPage < totalPages - 1) {
-            currentPage++;
-            updateGalleryDisplay();
-            // 播放点击音效
-            AudioEngine::play2d("click.mp3", false, 0.6f);
-        }
-        return;
-    }
-
-    // 检查是否点击了图片
-    for (int i = 0; i < visibleImages.size(); i++) {
-        auto sprite = visibleImages.at(i);
-        if (sprite && sprite->getBoundingBox().containsPoint(touchPos)) {
-            int actualIndex = currentPage * 3 + i;
-            if (actualIndex < allImages.size()) {
-                int goldCost = g_imageGoldPrices[actualIndex];
-                int crystalCost = g_imageCrystalPrices[actualIndex];
-
-                if (g_playerGold >= goldCost && g_playerCrystal >= crystalCost) {
-                    g_playerGold -= goldCost;
-                    g_playerCrystal -= crystalCost;
-
-                    auto originalSprite = allImages.at(actualIndex);
-
-                    g_selectedImageIndex = actualIndex;
-                    g_selectedImageRect = originalSprite->getTextureRect();
-                    g_selectedImageColor = originalSprite->getColor();
-                    g_selectedTexture = originalSprite->getTexture();
-                    g_selectedTextureRect = originalSprite->getTextureRect();
-                    g_selectedImageName = originalSprite->getName();
-
-                    // 播放购买音效
-                    AudioEngine::play2d("gold.mp3", false, 0.7f);
-
-                    this->setVisible(false);
-                }
-                else {
-                    // 播放点击音效（资源不足时）
-                    AudioEngine::play2d("click.mp3", false, 0.8f);
-
-                    auto notEnoughLabel = Label::createWithTTF("资源不足！", "fonts/arial.ttf", 20);
-                    notEnoughLabel->setPosition(Vec2(visibleSize.width / 2.0f, 400.0f));
-                    notEnoughLabel->setColor(Color3B::RED);
-                    this->addChild(notEnoughLabel, 6);
-
-                    notEnoughLabel->runAction(Sequence::create(
-                        DelayTime::create(1.5f),
-                        FadeOut::create(0.5f),
-                        RemoveSelf::create(),
-                        nullptr
-                    ));
-                }
-                return;
-            }
-        }
-    }
 }
 
+void Store::showPurchaseMessage(const std::string& message, Color4B color) {
+    auto visibleSize = Director::getInstance()->getVisibleSize();
+
+    // 创建消息标签
+    auto messageLabel = Label::createWithTTF(message, "fonts/arial.ttf", 40);
+    messageLabel->setPosition(Vec2(visibleSize.width / 2, visibleSize.height / 2 ));
+    messageLabel->setTextColor(color);
+    messageLabel->setOpacity(0);
+
+    //加点特效让它更醒目
+    messageLabel->enableOutline(Color4B::BLACK, 6); 
+    messageLabel->enableGlow(Color4B(255, 255, 255, 128));
+    messageLabel->enableShadow(Color4B(0, 0, 0, 150), Size(3, -3), 3); 
+
+    this->addChild(messageLabel, 10);
+
+    // 淡入淡出动画
+    auto fadeIn = FadeIn::create(0.3f);
+    auto delay = DelayTime::create(1.0f);
+    auto fadeOut = FadeOut::create(0.5f);
+    auto remove = RemoveSelf::create();
+
+    messageLabel->runAction(Sequence::create(fadeIn, delay, fadeOut, remove, nullptr));
+}

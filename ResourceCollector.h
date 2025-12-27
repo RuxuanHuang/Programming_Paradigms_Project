@@ -1,4 +1,5 @@
 #include "Building.h"
+#include "AudioEngine.h"
 
 class ResourceCollector : public Building {
 public:
@@ -10,6 +11,17 @@ public:
     // 收集行为
     virtual void collectResource();
     virtual void upgrade() override;
+
+    // 重写Building基类的鼠标事件方法
+    virtual void onBuildingMouseDown(Event* event) override;
+    virtual void onBuildingMouseUp(Event* event) override;
+    virtual void onBuildingMouseMove(Event* event) override;
+
+    // 判断是否可收集
+    bool isCollectable() const {
+        return _isHomeTown&&_currentStored > 0 && _collectIcon && _collectIcon->isVisible();
+    }
+    void tryCollectResource();
 
 protected:
     // 核心属性
@@ -27,13 +39,24 @@ protected:
     // 初始化图标位置
     void setupCollectIcon(const std::string& iconFile);
     void updateIconVisibility();
+
+
+
+    // 鼠标状态
+    bool _mouseStartedOnCollectable = false;
+    bool _shouldCollect = false;
+    cocos2d::Vec2 _mouseStartPos;
+    float _clickThreshold = 10.0f; // 点击判定阈值
+
+    // 辅助方法
+    //void showCollectEffect(int amount, const std::string& resourceType);
 };
 
 
 
 class GoldMine : public ResourceCollector {
 public:
-    static GoldMine* create(const std::string& buildingFile, bool isHownTown = true, const std::string turfFile = "grass.png", float buildingScale = 0.8);
+    static GoldMine* create(const std::string& buildingFile, bool isHomeTown = true, const std::string turfFile = "grass.png", float buildingScale = 0.8);
 
     virtual bool init(const std::string& buildingFile, const std::string turfFile, float buildingScale) override;
 
@@ -43,7 +66,7 @@ protected:
 
 class ElixirCollector : public ResourceCollector {
 public:
-    static ElixirCollector* create(const std::string& buildingFile, bool isHownTown = true, const std::string turfFile = "grass.png", float buildingScale = 0.8);
+    static ElixirCollector* create(const std::string& buildingFile, bool isHomeTown = true, const std::string turfFile = "grass.png", float buildingScale = 0.8);
 
     virtual bool init(const std::string& buildingFile, const std::string turfFile, float buildingScale) override;
 

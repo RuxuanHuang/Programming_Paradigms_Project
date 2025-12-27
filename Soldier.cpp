@@ -10,6 +10,10 @@
 using namespace cocos2d;
 using namespace cocos2d::ui;
 
+Soldier::~Soldier() {
+        _attackTarget = nullptr;
+}
+
 // 初始化LoadingBar血条（核心）
 void Soldier::initHPBar() {
     // 创建LoadingBar
@@ -69,15 +73,16 @@ Soldier* Soldier::create(Type type, Vec2 pos, float scale) {
             soldier = Mage::create(pos, scale);
             break;
         default:
-            CCLOG("未实现兵种类型：%d", (int)type);
+           
             return nullptr;
     }
     if (!soldier) {
-        CCLOG("兵种创建失败！类型：%d", (int)type);
+       
     }
     return soldier;
 }
 
+// Soldier.cpp
 bool Soldier::initBase(const std::string& idleImgPath, Vec2 pos, float scale) {
     if (!Sprite::initWithFile(idleImgPath)) {
         return false;
@@ -86,15 +91,15 @@ bool Soldier::initBase(const std::string& idleImgPath, Vec2 pos, float scale) {
     this->setPosition(pos);
     this->setScale(scale);
 
-    // ========== 新增：初始化属性 ==========
+    // ========== 初始化属性 ==========
     initBaseAttributes();       // 加载1级基础属性
     updateAttributesByLevel();  // 根据当前等级计算最终属性
     _currentHP = _maxHP;        // 初始满血
 
-    // ========== 新增：初始化_tilePos ==========
-    // 这里需要将世界坐标转换为格子坐标
-    // 但由于此时还没有地图节点，我们可以先设置为默认值
-    // 稍后在moveToBuilding中会重新设置
+    // ========== 初始化攻击偏好 ==========
+    initAttackPreference();     // 调用虚函数，子类可以重写
+
+    // ========== 初始化_tilePos ==========
     _tilePos = Vec2::ZERO;
 
     initHPBar();
@@ -179,23 +184,42 @@ void Soldier::onTakeDamage(float damage) {
     }
 }
 
-// 确保 onDeath 函数正确实现
+// 替换 Soldier::onDeath 为以下实现
+// Soldier.cpp - 确保onDeath正确通知场景
 void Soldier::onDeath() {
-    stopTakeDamage(); // 停止扣血
-    if (_hpBar) _hpBar->setVisible(false);
+    // 立即设置状态为死亡
+    _state = State::DEAD;
+    _currentHP = 0;
 
-    // 通知场景处理攻击队列
-    if (_scene) {
-        _scene->processAttackQueue();
+    // 停止所有动作和定时器
+    stopTakeDamage();
+    stopAttacking();
+    this->stopAllActions();
+    this->unscheduleAllCallbacks();
+
+    // 隐藏血条
+    if (_hpBar) {
+        _hpBar->setVisible(false);
+        auto hpBg = this->getChildByTag(100);
+        if (hpBg) hpBg->setVisible(false);
     }
 
-    // 销毁，确保所有逻辑执行完毕
-    runAction(Sequence::create(
-        CallFunc::create([this]() {
-            this->removeFromParentAndCleanup(true);
-            }),
-        nullptr
-    ));
+    // 立即通知场景
+    if (_scene) {
+        // 确保从活跃列表移除
+        _scene->removeSoldierFromList(this);
+        // 通知场景处理队列
+        _scene->processAttackQueue();
+
+        // 延迟销毁视觉表现
+        this->runAction(Sequence::create(
+            FadeOut::create(0.3f),
+            CallFunc::create([this]() {
+                this->removeFromParent();
+                }),
+            nullptr
+        ));
+    }
 }
 
 void Soldier::setFlippedX(bool flipped) {
@@ -205,57 +229,68 @@ void Soldier::setFlippedX(bool flipped) {
 }
 
 ///////////////////////////////////////////////////
-Vec2 Soldier::chooseTargetTile(Building* b)
-{
-    CCLOG("Soldier::chooseTargetTile");
+// Soldier.cpp - 修改 chooseTargetTile 为返回 bool + tile via reference
+// Soldier.cpp - 修改 chooseTargetTile 函数，返回是否找到路径
+bool Soldier::chooseTargetTile(Building* b, Vec2& outTile) {
+    outTile = Vec2(0, 0);
+    if (!b) return false;
+
     Vec2 start = _tilePos;
     auto tiles = b->getAttackTiles();
-    CCLOG("pppppppppppppppp：(%.1f, %.1f)", start.x, start.y);
-    CCLOG("oooooooooooooooooooooo：%d", (int)tiles.size());
-    Vec2 best;
     int bestCost = INT_MAX;
+    bool found = false;
 
-    for (auto& t : tiles)
-    {
+    for (auto& t : tiles) {
+        // 使用 findPath 查找路径
         auto path = findPath(start, t);
-        if (!path.empty() && path.size() < bestCost)
-        {
-            bestCost = path.size();
-            best = t;
+        if (!path.empty() && (int)path.size() < bestCost) {
+            bestCost = (int)path.size();
+            outTile = t;
+            found = true;
         }
     }
-    return best;
+
+    return found;
 }
 
 void Soldier::moveToBuilding(Building* target) {
-    if (!target) {
-        CCLOG("错误：moveToBuilding传入的目标建筑为空");
+    if (!target) {;
+        return;
+    }
+    // 先检查士兵是否存活
+    if (!this->isAlive()) {
         return;
     }
 
-    CCLOG("Soldier::moveToBuilding 开始，目标建筑：%p", target);
-
+    
     // 选择目标格子
-    Vec2 targetTile = chooseTargetTile(target);
-    CCLOG("当前士兵格子位置：(%.1f, %.1f)，目标格子：(%.1f, %.1f)",
-        _tilePos.x, _tilePos.y, targetTile.x, targetTile.y);
-
-    // 使用A*寻路
+    Vec2 targetTile;
+    if (!chooseTargetTile(target, targetTile)) {
+        this->setState(State::WAITING);
+        return;
+    }
+    auto mapSprite = dynamic_cast<Sprite*>(this->getParent()->getChildByTag(1));
+    Vec2 currentRealTile = mapLocalToTile(mapSprite, mapSprite->convertToNodeSpace(this->getPosition()), false);
+    
+    this->setTilePosition(currentRealTile); // 更新 _tilePos
+    // 新增调试日志：输出目标建筑的逻辑坐标
+    CCLOG("DEBUG_TARGET_INFO: Target Name: %s, TilePos: (%.1f, %.1f)",
+        target->getBuildingName().c_str(), target->getTileX(), target->getTileY());
+    Vec2 start = _tilePos;
     auto path = findPath(_tilePos, targetTile);
-
     if (path.empty()) {
-        CCLOG("警告：未找到路径到目标格子！");
+        this->setState(State::WAITING);
         return;
     }
 
-    CCLOG("找到路径，包含%d个点", (int)path.size());
+
     for (int i = 0; i < path.size(); i++) {
-        CCLOG("  路径点[%d]: (%.1f,%.1f)", i, path[i].x, path[i].y);
+       
     }
 
     Node* parentNode = this->getParent();
     if (!parentNode) {
-        CCLOG("Soldier has no parent node");
+       
         return;
         
     }
@@ -269,7 +304,6 @@ void Soldier::moveToBuilding(Building* target) {
         
     }
      if (!mapNode) {
-        CCLOG("Cannot find map sprite (CAMP_SPRITE_TAG). Move aborted.");
         return;
         
     }
@@ -278,7 +312,6 @@ void Soldier::moveToBuilding(Building* target) {
 
     // ========== 开始走路动画 ==========
     this->playWalkAnimation();
-    CCLOG("开始播放走路动画");
 
     // 创建移动动作序列
     for (size_t i = 1; i < path.size(); i++) { // 从第1个点开始（第0个是起点）
@@ -306,12 +339,10 @@ void Soldier::moveToBuilding(Building* target) {
             if (tile.x < prevTile.x) {
                 // 向左移动，需要翻转
                 this->setFlippedX(true);
-                CCLOG("士兵向左移动，设置翻转");
             }
             else if (tile.x > prevTile.x) {
                 // 向右移动，不需要翻转
                 this->setFlippedX(false);
-                CCLOG("士兵向右移动，取消翻转");
             }
             // 上下移动不需要翻转
         }
@@ -326,63 +357,185 @@ void Soldier::moveToBuilding(Building* target) {
         ));
     }
 
-    // 在移动序列最后添加回调
+    // 改为：
     actions.pushBack(CallFunc::create([this]() {
-        CCLOG("士兵移动动作序列完成");
-
-        // ========== 新增：停止走路动画 ==========
+        // 停止走路动画
         this->stopWalkAnimation();
-        CCLOG("停止走路动画");
 
-        // 检查是否设置了到达目标的回调
-        if (this->onReachTarget) {
-            this->onReachTarget(this);
-        }
-        else {
-            CCLOG("警告：士兵没有设置onReachTarget回调");
-        }
+        // 设置状态为等待（到达目标了）
+        this->setState(State::WAITING);
+
+        // 调用虚函数（允许子类重写行为）
+        this->onReachTargetCallback();
         }));
-
     // 执行动作序列
     runAction(Sequence::create(actions));
 }
+// Soldier.cpp - 在 startAttacking 函数中添加定时检查
+// --- 替换或修改这两个函数 ---
+
+// Soldier.cpp - 替换 startAttacking / stopAttacking 为下面内容
+
 void Soldier::startAttacking(Building* target) {
-    if (!target || _attackTarget == target) return;
+    if (!target) return;
 
-    _attackTarget = target;
-    // 开启定时器，每秒攻击一次
+    // 只设置目标指针（不 retain）
+    _attackTarget = target;;
+
+    // 确保 performAttack 已注册
+    this->unschedule(CC_SCHEDULE_SELECTOR(Soldier::performAttack));
     this->schedule(CC_SCHEDULE_SELECTOR(Soldier::performAttack), 1.0f);
-}
 
-void Soldier::performAttack(float dt) {
-    // 核心条件：只有活着、目标存在、且状态是等待/站定时才攻击
-    if (this->isAlive() && _attackTarget && _attackTarget->isAlive()) {
-        if (_state == State::WAITING || _state == State::UNDER_ATTACK) {
+    // 目标检测定时器（Director Scheduler）
+    Director::getInstance()->getScheduler()->unschedule("TargetCheckTimer", this);
+    Director::getInstance()->getScheduler()->schedule(
+        [this](float dt) {
+            if (!_attackTarget || !_attackTarget->getParent() || !_attackTarget->isAlive()) {
+                this->stopAttacking();
+                this->onTargetDestroyed();
+            }
+        },
+        this,
+        0.5f,
+        false,
+        "TargetCheckTimer"
+    );
 
-            _attackTarget->reduceHP(_attack);
-
-            // 攻击动作视觉反馈：士兵跳一下
-            auto jump = JumpBy::create(0.2f, Vec2::ZERO, 10, 1);
-            this->runAction(jump);
-
-        }
-    }
-    else {
-        this->stopAttacking();
-        this->onTargetDestroyed(); // 触发目标毁灭后的后续逻辑
-    }
+    this->setHPBarVisible(true);
 }
 
 void Soldier::stopAttacking() {
-    _attackTarget = nullptr;
+    // 取消定时器
     this->unschedule(CC_SCHEDULE_SELECTOR(Soldier::performAttack));
+    Director::getInstance()->getScheduler()->unschedule("TargetCheckTimer", this);
+
+    // 不再 release 目标（由场景/父节点管理生命周期），仅清空指针
+    if (_attackTarget) {
+        
+        _attackTarget = nullptr;
+    }
+    
 }
+
+// Replace the beginning of Soldier::performAttack with safer checks
+// Soldier.cpp - 替换 performAttack 实现（安全版）
+void Soldier::performAttack(float dt) {
+    // 先拿到当前场景
+    auto scene = dynamic_cast<BattleScene1*>(Director::getInstance()->getRunningScene());
+    if (!scene) {
+        // 没有场景则退回到安全状态
+        this->stopAttacking();
+        return;
+    }
+
+    // 如果没有目标，直接尝试切换目标
+    if (!_attackTarget) {
+       
+        this->stopAttacking();
+        this->onTargetDestroyed();
+        return;
+    }
+
+    // 安全调用场景接口来对目标造成伤害（场景会先验证目标是否仍有效）
+    bool didDamage = scene->applyDamageToBuilding(_attackTarget, _attack);
+
+    // applyDamageToBuilding 返回 false 表示目标在场景中不存在或已无效
+    if (!didDamage) {
+        this->stopAttacking();
+        this->onTargetDestroyed();
+        return;
+    }
+
+    // 成功造成伤害后，可以播放攻击动作（跳跃、攻击动画等）
+    if (_state == State::WAITING || _state == State::UNDER_ATTACK) {
+        auto jump = JumpBy::create(0.2f, Vec2::ZERO, 10, 1);
+        this->runAction(jump);
+    }
+}
+
+// Soldier.cpp - 实现 canReachBuilding 函数
+bool Soldier::canReachBuilding(Building* building) {
+    if (!building) return false;
+
+    Vec2 targetTile;
+    return chooseTargetTile(building, targetTile);
+}
+
 void Soldier::onTargetDestroyed() {
+    // 1. 停止当前的攻击行为
+    this->stopAttacking();
+
+    if (!this->isAlive()) {
+        return;
+    }
+
+    // 2. 清除当前攻击目标
     _attackTarget = nullptr;
 
-    if (this->isAlive()) {
-        CCLOG("目标已摧毁，士兵重新寻找路径或继续前进");
-        // 将状态切回 MOVING，以便触发后续的寻路或移动逻辑
+    // 3. 如果绑定到场景，让场景帮助寻找下一个目标建筑
+    if (_scene) {
+        // 将状态设置为移动中
         this->setState(State::MOVING);
+
+        // 使用场景的帮助函数寻找下一个目标
+        // 这个函数会考虑偏好和路径可达性
+        Building* nextTarget = _scene->getNextTargetBuilding(this);
+
+        if (nextTarget && nextTarget->isAlive()) {
+            // 设置新的攻击目标
+            _attackTarget = nextTarget;
+
+            // 立即开始移动到新建筑
+            this->moveToBuilding(_attackTarget);
+
+            // 设置到达目标时的回调
+            this->onReachTarget = [this](Soldier* s) {
+                // 确保目标仍然存在且存活
+                if (s->getAttackTarget() && s->getAttackTarget()->isAlive()) {
+                    s->setState(Soldier::State::WAITING);
+                    s->startAttacking(s->getAttackTarget());
+                }
+                else {
+                    // 如果目标已经没了，继续寻找下一个
+                    s->onTargetDestroyed();
+                }
+                };
+        }
+        else {
+            // 没有找到任何目标
+            this->setState(State::WAITING);
+        }
     }
+    else {
+        this->setState(State::WAITING);
+    }
+}
+
+// ========== 新增：寻找最近偏好建筑 ==========
+// ========== 新增：寻找最近偏好建筑 ==========
+Building* Soldier::findNearestPreferredBuilding() {
+    if (!_scene) return nullptr;
+
+    // 将_scene转换为BattleScene1指针
+    BattleScene1* battleScene = dynamic_cast<BattleScene1*>(_scene);
+    if (!battleScene) return nullptr;
+
+    // 如果没有任何偏好，直接返回null
+    if (_attackPreference == BuildingPreference::ANY || _preferredBuildingTypes.empty()) {
+        return nullptr;
+    }
+
+    // 调用BattleScene1的帮助函数
+    return battleScene->findNearestPreferredBuildingForSoldier(this, _attackPreference, _preferredBuildingTypes);
+}
+
+Building* Soldier::findNearestBuilding() {
+    if (!_scene) return nullptr;
+
+    // 将_scene转换为BattleScene1指针
+    BattleScene1* battleScene = dynamic_cast<BattleScene1*>(_scene);
+    if (!battleScene) return nullptr;
+
+    // 调用BattleScene1的帮助函数
+    return battleScene->findNearestBuildingForSoldier(this);
 }

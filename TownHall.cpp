@@ -1,14 +1,15 @@
 ﻿#include "TownHall.h"
+#include"resources.h"
 
 USING_NS_CC;
 
 TownHall* TownHall::create(const std::string& buildingFile,
-    bool isHownTown,
+    bool isHomeTown,
     const std::string& turfFile,
     float buildingScale)
 {
     TownHall* ret = new (std::nothrow) TownHall();
-    ret->setIsHownTown(isHownTown);
+    ret->setIsHownTown(isHomeTown);
     if (ret && ret->init(buildingFile, turfFile, buildingScale))
     {
         ret->autorelease();
@@ -36,17 +37,35 @@ bool TownHall::init(const std::string& buildingFile,
     this->setCost(1000);
     this->setHP(400);
 
-
+    _maxCapacity = 2500;
+    capacityList = { 2500,10000,50000 };
+    
 
     int hpValues[] = { 400,800,1600 };
     int upgradeCosts[] = { 1000,4000,0 };
     // 3. 设置大本营等级信息
     for (int i = 1; i <= 3; i++) {
         _upgradeSprites[i] = levelInformation{ hpValues[i - 1], upgradeCosts[i - 1], "" };
-        std::string spriteFile = StringUtils::format("TownHall/Town_Hall%d.png", i);
+        std::string spriteFile = StringUtils::format("Town_Hall/Town_Hall%d.png", i);
         this->setUpgradeSprite(i, spriteFile);
     }
 
 
     return true;
+
+}
+
+void TownHall::upgrade()
+{
+    Building::upgrade();
+
+	_maxCapacity = capacityList[_level - 1];
+    //建筑管理系统里更新大本营的升级
+    BuildingManager* buildingManager = BuildingManager::getInstance();
+    buildingManager->addTownhallLevel();
+    //资源管理系统更新金币圣水容量的相应增加
+    ResourceManager* resourceManager = ResourceManager::getInstance();
+    resourceManager->updateElixirMaxLimit(_maxCapacity- capacityList[_level-2]);
+    resourceManager->updateGoldMaxLimit(_maxCapacity - capacityList[_level - 2]);
+
 }

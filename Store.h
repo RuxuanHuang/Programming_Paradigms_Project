@@ -3,61 +3,60 @@
 
 #include "cocos2d.h"
 #include "ui/CocosGUI.h"
-#include "audio/include/AudioEngine.h"
+#include "AudioEngine.h"
+#include "BuildingManager.h"
+
 USING_NS_CC;
 
+// 商店卡片数据结构
+struct StoreCardData {
+    std::string cardName;      // 卡片名称
+    std::string iconPath;      // 图标路径
+    int price;                 // 价格
+    std::string costType;     // 货币类型(金币/圣水）
+    bool isLocked;            // 是否锁定
+};
 
-static int g_selectedImageIndex = -1;
-static cocos2d::Rect g_selectedImageRect = cocos2d::Rect::ZERO;
-static cocos2d::Color3B g_selectedImageColor = cocos2d::Color3B::WHITE;
-static cocos2d::Texture2D* g_selectedTexture = nullptr;
-static cocos2d::Rect g_selectedTextureRect = cocos2d::Rect::ZERO;
-static std::string g_selectedImageName = "";
-
-const int GOLD_LABEL_TAG = 1001;
-const int CRYSTAL_LABEL_TAG = 1002;
-const int LEFT_ARROW_TAG = 1003;
-const int RIGHT_ARROW_TAG = 1004;
-const int LABEL_TAG = 1005;
-
-// 玩家资源
-static int g_playerGold = 100;
-static int g_playerCrystal = 50;
-
-// 图片价格表
-static const std::vector<int> g_imageGoldPrices = { 20, 30, 25, 40, 35, 45, 50, 60 };
-static const std::vector<int> g_imageCrystalPrices = { 5, 8, 6, 10, 7, 12, 15, 20 };
-
-class Store : public Layer
-{
+class Store : public Scene {
 public:
-    virtual bool init() override;
+    // 添加回调函数类型定义
+    typedef std::function<void(const std::string& cardName)> CardSelectCallback;
 
     CREATE_FUNC(Store);
+    virtual bool init() override;
 
-    virtual void onEnter() override;
-    virtual void onExit() override;
+    // 设置卡片选择回调
+    void setCardSelectCallback(const CardSelectCallback& callback) {
+        _cardSelectCallback = callback;
+    }
+    
 
 private:
-    void displayPlayerResources();
-    void loadAllImages();
-    void createImageSelectionArea();
-    void createImageGallery();
+    Label* goldLabel = nullptr;
+    Label* elixirLabel = nullptr;
+
+    // 初始化数据
+    void initCardData();
+    // 创建UI
+    void createUI();
+    // 创建卡片
+    void createCard(const StoreCardData& data, Vec2 position);
+    // 处理卡片点击
+    void onCardClicked(const StoreCardData& data);
+    void showPurchaseMessage(const std::string& message, Color4B color);
+    void createResourceDisplay();
     void updateResourceDisplay();
-    void updateGalleryDisplay();
 
-    bool onTouchBegan(cocos2d::Touch* touch, cocos2d::Event* event);
-    void onTouchEnded(cocos2d::Touch* touch, cocos2d::Event* event);
+    //判断能否购买
+	bool canPurchase(const StoreCardData& data);
+	bool checkBuildingNum(const StoreCardData& data);
+	bool checkCost(const StoreCardData& data);
+   
 
+    Vector<Sprite*> cardSprites;
+    std::vector<StoreCardData> cardDataList;
+    CardSelectCallback _cardSelectCallback; // 卡片选择回调
     
+};
 
-private:
-    cocos2d::Vector<cocos2d::Sprite*> allImages;
-    cocos2d::Vector<cocos2d::Sprite*> visibleImages;
-    cocos2d::Label* currentPageLabel = nullptr;
-    int currentPage = 0;
-    int touchedImageIndex = -1;
-
-    
-}; 
-#endif 
+#endif // __STORE_H__

@@ -3,18 +3,18 @@
 USING_NS_CC;
 
 ResourceStorageBuilding::ResourceStorageBuilding() :
-    _maxStorage(1000),
-    _currentStorage(0)
+    _maxStorage(1500)
+   
 {
 }
 
 ResourceStorageBuilding* ResourceStorageBuilding::create(const std::string& buildingFile,
-    bool isHownTown,
+    bool isHomeTown,
     const std::string turfFile,
     float buildingScale)
 {
     ResourceStorageBuilding* ret = new (std::nothrow) ResourceStorageBuilding();
-    ret->setIsHownTown(isHownTown);
+    ret->setIsHownTown(isHomeTown);
     if (ret && ret->init(buildingFile, turfFile, buildingScale))
     {
         ret->autorelease();
@@ -55,18 +55,17 @@ void ResourceStorageBuilding::upgrade()
 {
     // 先调用基类的升级逻辑
     Building::upgrade();
-
     setMaxStorage(storageCapacityList[_level - 1]);
 }
 
 
 GoldStorage* GoldStorage::create(const std::string& buildingFile,
-    bool isHownTown,
+    bool isHomeTown,
     const std::string turfFile,
     float buildingScale)
 {
     GoldStorage* ret = new (std::nothrow) GoldStorage();
-    ret->setIsHownTown(isHownTown);
+    ret->setIsHownTown(isHomeTown);
     if (ret && ret->init(buildingFile, turfFile, buildingScale))
     {
         ret->autorelease();
@@ -89,8 +88,7 @@ bool GoldStorage::init(const std::string& buildingFile,
 
     // 2. 设置基本属性
     this->setBuildingName("Gold Storage");
-
-
+    _costType = "Elixir";
 
     // 3. 设置等级信息
     for (int i = 1; i <= 6; i++) {
@@ -103,13 +101,27 @@ bool GoldStorage::init(const std::string& buildingFile,
 }
 
 
+void GoldStorage::upgrade()
+{
+    ResourceStorageBuilding::upgrade();
+	ResourceManager* resourceManager = ResourceManager::getInstance();
+    if (!resourceManager) return;
+
+    // 根据当前等级计算升级带来的容量增量
+    int addLimit = storageCapacityList[_level - 1]- storageCapacityList[_level - 2];
+
+    // 更新金币的最大容量
+    resourceManager->updateGoldMaxLimit(addLimit);
+
+}
+
 ElixirStorage* ElixirStorage::create(const std::string& buildingFile,
-    bool isHownTown,
+    bool isHomeTown,
     const std::string turfFile,
     float buildingScale)
 {
     ElixirStorage* ret = new (std::nothrow) ElixirStorage();
-    ret->setIsHownTown(isHownTown);
+    ret->setIsHownTown(isHomeTown);
     if (ret && ret->init(buildingFile, turfFile, buildingScale))
     {
         ret->autorelease();
@@ -142,4 +154,18 @@ bool ElixirStorage::init(const std::string& buildingFile,
     }
 
     return true;
+}
+
+void ElixirStorage::upgrade()
+{
+    ResourceStorageBuilding::upgrade();
+    ResourceManager* resourceManager = ResourceManager::getInstance();
+    if (!resourceManager) return;
+
+    // 根据当前等级计算升级带来的容量增量
+    int addLimit = storageCapacityList[_level - 1] - storageCapacityList[_level - 2];
+
+    // 更新金币的最大容量
+    resourceManager->updateElixirMaxLimit(addLimit);
+
 }
